@@ -175,8 +175,6 @@ cython_debug/
 
 # ignore config.py
 config.py
-# ignore Pipfile.lock
-Pipfile.lock
 
 # ignore migration files used as DB
 mi.md
