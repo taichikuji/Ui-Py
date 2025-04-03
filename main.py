@@ -1,9 +1,7 @@
-from discord import Intents, Client, app_commands, Interaction, errors, Activity, ActivityType
+from discord import Intents, Activity, ActivityType
 from discord.ext import commands
 from glob import iglob
-from os import sep, path
-import traceback
-import asyncio
+from os import sep
 from aiohttp import ClientSession
 
 try:
