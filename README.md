@@ -15,7 +15,7 @@ Because this is a rewrite and retry at writing best practices code in Python, ke
 
 ## How do I make it work?
 
-<a href="https://github.com/taichikuji/Ui-Py/wiki/How-to-get-the-bot-working/">Here you have info for that!</a>
+<a href="https://github.com/taichikuji/Ui-Py/wiki/How-to-get-the-bot-working/">// We are building it!</a>
 
 ## Uses:
 
@@ -26,5 +26,3 @@ Because this is a rewrite and retry at writing best practices code in Python, ke
 
 - <a href="https://pypi.org/project/discord.py/"><img src="https://img.shields.io/github/pipenv/locked/dependency-version/taichikuji/Ui-Py/discord.py/master"/></a>
 - <a href="https://pypi.org/project/aiohttp/"><img src="https://img.shields.io/github/pipenv/locked/dependency-version/taichikuji/Ui-Py/aiohttp/master"/></a>
-- <a href="https://pypi.org/project/psutil/"><img src="https://img.shields.io/github/pipenv/locked/dependency-version/taichikuji/Ui-Py/psutil/master"/></a>
-- <a href="https://pypi.org/project/glob2/"><img src="https://img.shields.io/github/pipenv/locked/dependency-version/taichikuji/Ui-Py/glob2/master"/></a>
