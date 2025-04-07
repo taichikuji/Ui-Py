@@ -12,6 +12,7 @@ isort = "*"
 [packages]
 "discord.py" = {extras = ["voice"], version = "*"}
 "aiohttp" = "*"
+"psutil" = "*"
 
 [requires]
 python_version = "3.12"

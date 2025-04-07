@@ -12,7 +12,7 @@ except ImportError:
 class UiPy(commands.AutoShardedBot):
     def __init__(self):
         super().__init__(
-            description="Do you want, coffee, or tea?",
+            description="Do you want coffee, or tea?",
             command_prefix=commands.when_mentioned,
             case_insensitive=True,
             intents=Intents.default(),
@@ -21,11 +21,11 @@ class UiPy(commands.AutoShardedBot):
         self.session: ClientSession | None = None
         self.color = 0xFF3351
         self.owner_id = 199632174603829249 # https://discordid.taichikuji.org?id=199632174603829249
-        print("[INFO] super().__init__() finished")
+        print("[DEBUG] super().__init__() finished")
 
     async def setup_hook(self):
         self.session = ClientSession()
-        print("[INFO] ClientSession created")
+        print("[DEBUG] ClientSession created")
         for functions in iglob("functions/**/*.py", recursive=True):
             module = functions.replace(".py", "").replace(sep, ".")
             try:
