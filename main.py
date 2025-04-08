@@ -21,11 +21,9 @@ class UiPy(commands.AutoShardedBot):
         self.session: ClientSession | None = None
         self.color = 0xFF3351
         self.owner_id = 199632174603829249 # https://discordid.taichikuji.org?id=199632174603829249
-        print("[DEBUG] super().__init__() finished")
 
     async def setup_hook(self):
         self.session = ClientSession()
-        print("[DEBUG] ClientSession created")
         for functions in iglob("functions/**/*.py", recursive=True):
             module = functions.replace(".py", "").replace(sep, ".")
             try:
@@ -49,17 +47,17 @@ class UiPy(commands.AutoShardedBot):
             await super().close()
             print("[INFO] Session closed!")
         except Exception as e:
-            print(f"[ERROR] Failed to close aiohttp session! {E52} - {e}")
+            print(f"[ERROR] Failed to close aiohttp session - {e}")
             raise
 
     def run(self, **kwargs):
         try:
             super().run(self._bot_token, reconnect=True, **kwargs)
         except TypeError:
-            print("[ERROR] An unexpected keyword argument was passed! {E59}")
+            print("[ERROR] An unexpected keyword argument was passed!")
             return TypeError
         except Exception:
-            print("[ERROR] An exception occurred! {E62}")
+            print("[ERROR] An exception occurred!")
 
 if __name__ == "__main__":
     print("[INFO] Starting Ui-Py...")
