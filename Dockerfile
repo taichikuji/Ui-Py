@@ -1,13 +1,21 @@
+FROM python:3.12-slim as builder
+
+WORKDIR /usr/src/app
+
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends build-essential git libffi-dev libnacl-dev python3-dev && \
+    pip install pipenv
+
+COPY Pipfile Pipfile.lock ./
+RUN pipenv requirements > requirements.txt
+
 FROM python:3.12-slim
 
 WORKDIR /usr/src/app
 
-RUN apt-get update -y && pip install pipenv && apt-get install build-essential git libffi-dev libnacl-dev python3-dev -y --no-install-recommends
-
-COPY Pipfile .
-COPY Pipfile.lock .
-RUN pipenv requirements > requirements.txt && pip install -r requirements.txt && pip uninstall pipenv -y && apt-get purge build-essential build-essential git -y -o APT::AutoRemove::RecommendsImportant=false
+COPY --from=builder /usr/src/app/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD [ "python", "./main.py" ]
+CMD ["python", "./main.py"]

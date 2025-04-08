@@ -1,13 +1,12 @@
 from discord import Intents, Activity, ActivityType
 from discord.ext import commands
 from glob import iglob
-from os import sep
+from os import sep, environ
 from aiohttp import ClientSession
 
-try:
-    from config import TOKEN
-except ImportError:
-    print("[ERROR] Failed to import TOKEN from config.py")
+TOKEN = environ.get('TOKEN')
+if TOKEN is None:
+    raise EnvironmentError("[ERROR] TOKEN environment variable not set")
 
 class UiPy(commands.AutoShardedBot):
     def __init__(self):

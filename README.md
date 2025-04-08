@@ -17,6 +17,28 @@ Because this is a rewrite and retry at writing best practices code in Python, ke
 
 <a href="https://github.com/taichikuji/Ui-Py/wiki/How-to-get-the-bot-working/">// We are building it!</a>
 
+To deploy, you have the following options:
+
+1. **Using Docker-Compose**  
+    Pass the variable into your `docker-compose.yml` file or export it:
+    ```bash
+    export TOKEN='TOKEN'
+    ```  
+    Afterwards, deploy easily with:
+    ```bash
+    ./deploy-dc.sh
+    ```
+
+2. **Using Docker Build and Run**  
+    Build the image:
+    ```bash
+    docker build -t ui:latest .
+    ```  
+    Run the container with the TOKEN environment variable:
+    ```bash
+    docker run -e TOKEN="TOKEN" ui:latest
+    ```
+
 ## Uses:
 
 - <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/github/pipenv/locked/python-version/taichikuji/Ui-Py"/></a>

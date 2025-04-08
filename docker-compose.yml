@@ -3,3 +3,5 @@ services:
     build: ./
     restart: always
     container_name: ui
+    environment:
+      - TOKEN=${TOKEN}
