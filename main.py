@@ -19,7 +19,6 @@ class UiPy(commands.AutoShardedBot):
         self._bot_token = TOKEN
         self.session: ClientSession | None = None
         self.color = 0xFF3351
-        self.owner_id = 199632174603829249 # https://discordid.taichikuji.org?id=199632174603829249
 
     async def setup_hook(self):
         self.session = ClientSession()

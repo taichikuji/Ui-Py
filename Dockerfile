@@ -3,7 +3,7 @@ FROM python:3.12-slim AS builder
 WORKDIR /usr/src/app
 
 RUN apt-get update -y && \
-    apt-get install -y --no-install-recommends build-essential git libffi-dev libnacl-dev python3-dev && \
+    apt-get install -y --no-install-recommends build-essential git libffi-dev ffmpeg libnacl-dev python3-dev && \
     pip install pipenv
 
 COPY Pipfile Pipfile.lock ./

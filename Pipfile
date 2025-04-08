@@ -13,7 +13,8 @@ isort = "*"
 discord = {py = {extras = ["voice"], version = "*"}}
 aiohttp = "*"
 psutil = "*"
-yt-dlp = "*"    
+yt-dlp = "*"
+pynacl = "*"
 
 [requires]
 python_version = "3.12"
