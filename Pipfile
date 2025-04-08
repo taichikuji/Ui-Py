@@ -10,9 +10,10 @@ flake8 = "*"
 isort = "*"
 
 [packages]
-"discord.py" = {extras = ["voice"], version = "*"}
-"aiohttp" = "*"
-"psutil" = "*"
+discord = {py = {extras = ["voice"], version = "*"}}
+aiohttp = "*"
+psutil = "*"
+yt-dlp = "*"    
 
 [requires]
 python_version = "3.12"
