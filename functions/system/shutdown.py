@@ -1,5 +1,4 @@
 from discord.ext import commands
-from discord import app_commands
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -16,13 +15,15 @@ class CloseCog(commands.Cog):
     @commands.is_owner()
     async def shutdown_bot(self, ctx: commands.Context):
         bot_user = ctx.bot.user
-        print(f"[INFO] Shutdown command initiated by owner ({ctx.author.id}).")
         if ctx.interaction:
             await ctx.interaction.response.send_message(f":wave: Shutting down {bot_user.name}...", ephemeral=True)
         else:
             await ctx.send(f":wave: Shutting down {bot_user.name}...")
-        await ctx.bot.close()
-        print(f"[INFO] Bot close() method invoked.")
+        try:
+            await ctx.bot.close()
+        except Exception as e:
+            print(f"[ERROR] Failed to shut down the bot: {e}")
+            raise
 
 async def setup(bot: 'UiPyBot'):
     await bot.add_cog(CloseCog(bot))
