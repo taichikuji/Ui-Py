@@ -21,8 +21,12 @@ class CloseCog(commands.Cog):
             await ctx.interaction.response.send_message(f":wave: Shutting down {bot_user.name}...", ephemeral=True)
         else:
             await ctx.send(f":wave: Shutting down {bot_user.name}...")
-        await ctx.bot.close()
-        print(f"[INFO] Bot close() method invoked.")
+        try:
+            await ctx.bot.close()
+            print(f"[INFO] Bot close() method invoked.")
+        except Exception as e:
+            print(f"[ERROR] Failed to shut down the bot: {e}")
+            raise
 
 async def setup(bot: 'UiPyBot'):
     await bot.add_cog(CloseCog(bot))

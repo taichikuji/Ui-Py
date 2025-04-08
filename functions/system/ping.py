@@ -12,6 +12,7 @@ class PingCog(commands.Cog):
     @commands.hybrid_command(name="ping", description="Check the bot's latency.")
     async def ping(self, ctx: commands.Context) -> None:
         latency = int(self.bot.latency * 1000)
+        print(f"[INFO] Ping command invoked. Latency: {latency}ms")
         if ctx.interaction:
             await ctx.interaction.response.send_message(f":ping_pong: Pong! Latency: {latency}ms", ephemeral=True)
         else:

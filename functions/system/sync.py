@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 class SyncCog(commands.Cog):
     def __init__(self, bot: "UiPyBot"):
         self.bot = bot
-    
+
     @commands.hybrid_group(
         name="sync",
         description="Sync application commands (Owner Only)",
@@ -17,12 +17,12 @@ class SyncCog(commands.Cog):
     @commands.is_owner()
     async def sync(self, ctx: commands.Context):
         if ctx.invoked_subcommand is None:
-             await ctx.send(
-                 "Please specify a subcommand: `global` or `guild [id]`.\n"
-                 "(e.g., `/sync guild` or `@BotName sync global`)",
-                 ephemeral=True
+            await ctx.send(
+                "Please specify a subcommand: `global` or `guild [id]`.\n"
+                "(e.g., `/sync guild` or `@BotName sync global`)",
+                ephemeral=True
             )
-    
+
     @sync.command(name="global", description="Sync commands globally (can take up to an hour).")
     @commands.is_owner()
     async def sync_global(self, ctx: commands.Context):
@@ -77,8 +77,8 @@ class SyncCog(commands.Cog):
             target_guild_object = ctx.guild
             guild_identifier = f"current guild ({ctx.guild.id})"
         elif self.bot.dev_guild:
-             target_guild_object = self.bot.dev_guild
-             guild_identifier = f"configured development guild ({self.bot.dev_guild.id})"
+            target_guild_object = self.bot.dev_guild
+            guild_identifier = f"configured development guild ({self.bot.dev_guild.id})"
         else:
             err_msg = "Cannot determine target guild. Please specify a Guild ID or run this command in a server."
             if is_slash: await ctx.interaction.followup.send(err_msg, ephemeral=True)
@@ -97,7 +97,7 @@ class SyncCog(commands.Cog):
             if is_slash: await ctx.interaction.followup.send(msg, ephemeral=True)
             else: await ctx.send(msg)
         except Forbidden as e:
-            msg = f"Failed to sync to {guild_identifier}: {e.status if hasattr(e, 'status') else 'N/A'} {e.text if hasattr(e, 'text') else 'Missing Permissions. Ensure the bot is in the guild with \'application.commands\' scope.'}"
+            msg = f"Failed to sync to {guild_identifier}: {e.status if hasattr(e, 'status') else 'N/A'} {e.text if hasattr(e, 'text') else 'Missing Permissions. Ensure the bot is in the guild with 'application.commands' scope.'}"
             print(f"[ERROR] {msg}")
             traceback.print_exception(type(e), e, e.__traceback__)
             if is_slash: await ctx.interaction.followup.send(msg, ephemeral=True)
@@ -114,7 +114,6 @@ class SyncCog(commands.Cog):
             traceback.print_exc()
             if is_slash: await ctx.interaction.followup.send(msg, ephemeral=True)
             else: await ctx.send(msg)
-
 
 async def setup(bot: "UiPyBot"):
     await bot.add_cog(SyncCog(bot))

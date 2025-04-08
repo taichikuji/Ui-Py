@@ -20,7 +20,7 @@ class ClearCog(commands.Cog):
         deleted = await ctx.channel.purge(limit=amount)
         msg = f":wastebasket: Deleted {len(deleted)} messages."
         if interaction:
-            await interaction.followup.send(msg)
+            await interaction.followup.send(msg, ephemeral=True)
         else:
             await ctx.send(msg)
 
@@ -33,6 +33,7 @@ class ClearCog(commands.Cog):
             else:
                 await ctx.send(msg)
         else:
+            print(f"[ERROR] An unexpected error occurred: {error}")
             raise error
 
 async def setup(bot: 'UiPyBot'):

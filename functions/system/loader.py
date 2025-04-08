@@ -27,6 +27,9 @@ class LoaderCog(commands.Cog):
             description = f":x: Extension '{extension}' failed to load due to an error."
         except commands.NoEntryPointError:
             description = f":x: Extension '{extension}' does not have a setup function."
+        except Exception as e:
+            description = f":x: An unexpected error occurred: {e}"
+            print(f"[ERROR] {description}")
 
         if ctx.interaction:
             await ctx.interaction.response.send_message(description, ephemeral=True)
@@ -44,6 +47,9 @@ class LoaderCog(commands.Cog):
             description = f":white_check_mark: Unloaded extension '{extension}' successfully."
         except commands.ExtensionNotLoaded:
             description = f":information_source: Extension '{extension}' is not loaded."
+        except Exception as e:
+            description = f":x: An unexpected error occurred: {e}"
+            print(f"[ERROR] {description}")
 
         if ctx.interaction:
             await ctx.interaction.response.send_message(description, ephemeral=True)
@@ -68,12 +74,15 @@ class LoaderCog(commands.Cog):
             description = f":x: Extension '{extension}' failed to reload due to an error."
         except commands.NoEntryPointError:
             description = f":x: Extension '{extension}' does not have a setup function."
+        except Exception as e:
+            description = f":x: An unexpected error occurred: {e}"
+            print(f"[ERROR] {description}")
 
         if ctx.interaction:
             await ctx.interaction.response.send_message(description, ephemeral=True)
         else:
             await ctx.send(description)
-    
+
     @load.error
     @unload.error
     @reload.error
@@ -82,12 +91,12 @@ class LoaderCog(commands.Cog):
             description = ":x: You need to specify the module to load/unload/reload. Usage: `load <folder.file>`, `unload <folder.file>`, `reload <folder.file>`."
         else:
             description = str(error)
+            print(f"[ERROR] Command error: {description}")
 
         if ctx.interaction:
             await ctx.interaction.response.send_message(description, ephemeral=True)
         else:
             await ctx.send(description)
-
 
 async def setup(bot: 'UiPyBot'):
     await bot.add_cog(LoaderCog(bot))
