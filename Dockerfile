@@ -21,7 +21,8 @@ WORKDIR /usr/src/app
 COPY --from=builder /usr/src/app/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY --from=builder /ffmpeg-deps/usr/bin/* /usr/bin/ /ffmpeg-deps/usr/lib/* /usr/lib/
+COPY --from=builder /ffmpeg-deps/usr/bin/* /usr/bin/
+COPY --from=builder /ffmpeg-deps/usr/lib/* /usr/lib/
 
 COPY main.py functions ./
 
