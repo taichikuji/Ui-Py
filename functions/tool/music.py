@@ -11,7 +11,11 @@ class MusicCog(commands.Cog):
         self.bot = bot
         self.voice_clients = {}
         self.ydl_opts = {
+            'format': 'bestaudio/best',
             'default_search': 'ytsearch',
+            'noplaylist': True,
+            'quiet': True,
+            'extract_flat': False,
         }
         self.ffmpeg_opts = {
             'options': '-vn',
@@ -21,7 +25,15 @@ class MusicCog(commands.Cog):
         name="play",
         description="Play a song from YouTube. Provide a search term or URL."
     )
-    async def play(self, ctx: commands.Context, *, query: str):
+    async def play(self, ctx: commands.Context, *, query: str = None):
+        if not query:
+            description = ":x: You must provide a search term or URL."
+            if ctx.interaction:
+                await ctx.interaction.response.send_message(description, ephemeral=True)
+            else:
+                await ctx.send(description)
+            return
+
         if not ctx.author.voice:
             description = ":x: You need to be in a voice channel to use this command."
             if ctx.interaction:
@@ -38,6 +50,9 @@ class MusicCog(commands.Cog):
         else:
             vc = self.voice_clients[ctx.guild.id]
 
+        if ctx.interaction:
+            await ctx.interaction.response.defer()
+
         with YoutubeDL(self.ydl_opts) as ydl:
             try:
                 info = ydl.extract_info(query, download=False)
@@ -50,7 +65,7 @@ class MusicCog(commands.Cog):
             except Exception as e:
                 description = f":x: Failed to retrieve video. Error: {e}"
                 if ctx.interaction:
-                    await ctx.interaction.response.send_message(description, ephemeral=True)
+                    await ctx.interaction.followup.send(description, ephemeral=True)
                 else:
                     await ctx.send(description)
                 return
@@ -59,7 +74,7 @@ class MusicCog(commands.Cog):
         vc.play(FFmpegPCMAudio(url, **self.ffmpeg_opts))
         description = f":notes: Now playing: **{title}**"
         if ctx.interaction:
-            await ctx.interaction.response.send_message(description, ephemeral=True)
+            await ctx.interaction.followup.send(description, ephemeral=True)
         else:
             await ctx.send(description)
 
@@ -123,3 +138,4 @@ class MusicCog(commands.Cog):
 
 async def setup(bot: 'UiPyBot'):
     await bot.add_cog(MusicCog(bot))
+
