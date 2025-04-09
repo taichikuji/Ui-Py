@@ -24,6 +24,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY --from=builder /ffmpeg-deps/usr/bin/* /usr/bin/
 COPY --from=builder /ffmpeg-deps/usr/lib/* /usr/lib/
 
-COPY main.py functions ./
+COPY main.py ./
+COPY functions ./functions/
 
 CMD ["python", "./main.py"]
