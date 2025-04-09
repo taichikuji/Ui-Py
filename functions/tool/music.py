@@ -2,6 +2,7 @@ from discord.ext import commands
 from discord import FFmpegPCMAudio
 from yt_dlp import YoutubeDL
 from typing import TYPE_CHECKING
+from asyncio import get_running_loop
 
 if TYPE_CHECKING:
     from main import UiPyBot
@@ -55,7 +56,7 @@ class MusicCog(commands.Cog):
 
         with YoutubeDL(self.ydl_opts) as ydl:
             try:
-                info = ydl.extract_info(query, download=False)
+                info = await get_running_loop().run_in_executor(None , lambda: ydl.extract_info(query, download=False))
                 if 'entries' in info:
                     info = info['entries'][0]
                 if 'url' not in info:
@@ -138,4 +139,3 @@ class MusicCog(commands.Cog):
 
 async def setup(bot: 'UiPyBot'):
     await bot.add_cog(MusicCog(bot))
-
