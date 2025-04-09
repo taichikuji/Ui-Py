@@ -38,6 +38,19 @@ To deploy, you have the following options:
     ```bash
     docker run -e TOKEN="TOKEN" ui:latest
     ```
+### 3. **Using ghcr.io**
+
+You can now deploy using GitHub Packages without building the Dockerfile yourself!
+
+Simply pull the image with the following command:
+
+```bash
+docker pull ghcr.io/taichikuji/ui-py:latest
+```
+
+This image can even be used in your Kubernetes cluster!
+
+We don't have a Kubernetes deployment YAML at the moment, but one may be provided in the future.
 
 ## Uses:
 
@@ -48,3 +61,4 @@ To deploy, you have the following options:
 
 - <a href="https://pypi.org/project/discord.py/"><img src="https://img.shields.io/github/pipenv/locked/dependency-version/taichikuji/Ui-Py/discord.py/master"/></a>
 - <a href="https://pypi.org/project/aiohttp/"><img src="https://img.shields.io/github/pipenv/locked/dependency-version/taichikuji/Ui-Py/aiohttp/master"/></a>
+
