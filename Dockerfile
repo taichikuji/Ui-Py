@@ -3,7 +3,7 @@ FROM python:3.12-slim AS builder
 WORKDIR /usr/src/app
 
 RUN apt-get update -y && \
-    apt-get install -y --no-install-recommends build-essential git libffi-dev ffmpeg libnacl-dev python3-dev && \
+    apt-get install -y --no-install-recommends build-essential git libffi-dev ffmpeg libnacl-dev python3-dev libopus-dev && \
     pip install pipenv
 
 RUN mkdir -p /ffmpeg-deps/usr/bin && \
@@ -23,6 +23,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY --from=builder /ffmpeg-deps/usr/bin/* /usr/bin/
 COPY --from=builder /ffmpeg-deps/usr/lib/* /usr/lib/
+
+RUN ldconfig
 
 COPY main.py ./
 COPY functions ./functions/
