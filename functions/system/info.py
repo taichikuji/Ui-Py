@@ -7,15 +7,16 @@ from discord.ext import commands
 from psutil import Process
 
 if TYPE_CHECKING:
-    from main import UiPyBot
+    from main import UiPy
+
 
 class InfoCog(commands.Cog):
-    def __init__(self, bot: 'UiPyBot'):
+    def __init__(self, bot: "UiPy"):
         self.bot = bot
 
     @app_commands.command(
         name="info",
-        description="Show information about the bot, including versions, uptime, and memory usage."
+        description="Show information about the bot, including versions, uptime, and memory usage.",
     )
     async def info(self, interaction: Interaction):
         embed = await self.create_embed()
@@ -34,7 +35,11 @@ class InfoCog(commands.Cog):
                 },
                 {"name": "OS", "value": f"**{system()}**: {machine()}", "inline": True},
                 {"name": "Uptime", "value": await self.uptime(), "inline": True},
-                {"name": "Memory", "value": await self._get_mem_usage(), "inline": True},
+                {
+                    "name": "Memory",
+                    "value": await self._get_mem_usage(),
+                    "inline": True,
+                },
             ],
         }
         return Embed.from_dict(em)
@@ -52,5 +57,6 @@ class InfoCog(commands.Cog):
         uptime_minutes = (uptime % 3600) // 60
         return f"{uptime_hours} hours, {uptime_minutes} minutes"
 
-async def setup(bot: 'UiPyBot'):
+
+async def setup(bot: "UiPy"):
     await bot.add_cog(InfoCog(bot))

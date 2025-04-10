@@ -3,24 +3,28 @@ from typing import TYPE_CHECKING
 from discord.ext import commands
 
 if TYPE_CHECKING:
-    from main import UiPyBot
+    from main import UiPy
+
 
 class LoaderCog(commands.Cog):
-    def __init__(self, bot: 'UiPyBot'):
+    def __init__(self, bot: "UiPy"):
         self.bot = bot
 
-    @commands.hybrid_command(
-        name="load",
-        description="Load an extension."
-    )
+    @commands.hybrid_command(name="load", description="Load an extension.")
     @commands.is_owner()
     async def load(self, ctx: commands.Context, extension: str):
         try:
             await self.bot.load_extension(f"functions.{extension}")
-            print(f"[INFO] {extension} loaded at {strftime('%A, %d %b %Y, %I:%M:%S %p', localtime())}.")
-            description = f":white_check_mark: Loaded extension '{extension}' successfully."
+            print(
+                f"[INFO] {extension} loaded at {strftime('%A, %d %b %Y, %I:%M:%S %p', localtime())}."
+            )
+            description = (
+                f":white_check_mark: Loaded extension '{extension}' successfully."
+            )
         except commands.ExtensionAlreadyLoaded:
-            description = f":information_source: Extension '{extension}' is already loaded."
+            description = (
+                f":information_source: Extension '{extension}' is already loaded."
+            )
         except commands.ExtensionNotFound:
             description = f":x: Extension '{extension}' not found."
         except commands.ExtensionFailed:
@@ -36,15 +40,14 @@ class LoaderCog(commands.Cog):
         else:
             await ctx.send(description)
 
-    @commands.hybrid_command(
-        name="unload",
-        description="Unload an extension."
-    )
+    @commands.hybrid_command(name="unload", description="Unload an extension.")
     @commands.is_owner()
     async def unload(self, ctx: commands.Context, extension: str):
         try:
             await self.bot.unload_extension(f"functions.{extension}")
-            description = f":white_check_mark: Unloaded extension '{extension}' successfully."
+            description = (
+                f":white_check_mark: Unloaded extension '{extension}' successfully."
+            )
         except commands.ExtensionNotLoaded:
             description = f":information_source: Extension '{extension}' is not loaded."
         except Exception as e:
@@ -56,22 +59,25 @@ class LoaderCog(commands.Cog):
         else:
             await ctx.send(description)
 
-    @commands.hybrid_command(
-        name="reload",
-        description="Reload an extension."
-    )
+    @commands.hybrid_command(name="reload", description="Reload an extension.")
     @commands.is_owner()
     async def reload(self, ctx: commands.Context, extension: str):
         try:
             await self.bot.reload_extension(f"functions.{extension}")
-            print(f"[INFO] {extension} reloaded at {strftime('%A, %d %b %Y, %I:%M:%S %p', localtime())}.")
-            description = f":white_check_mark: Reloaded extension '{extension}' successfully."
+            print(
+                f"[INFO] {extension} reloaded at {strftime('%A, %d %b %Y, %I:%M:%S %p', localtime())}."
+            )
+            description = (
+                f":white_check_mark: Reloaded extension '{extension}' successfully."
+            )
         except commands.ExtensionNotLoaded:
             description = f":x: Extension '{extension}' is not loaded."
         except commands.ExtensionNotFound:
             description = f":x: Extension '{extension}' not found."
         except commands.ExtensionFailed:
-            description = f":x: Extension '{extension}' failed to reload due to an error."
+            description = (
+                f":x: Extension '{extension}' failed to reload due to an error."
+            )
         except commands.NoEntryPointError:
             description = f":x: Extension '{extension}' does not have a setup function."
         except Exception as e:
@@ -98,5 +104,6 @@ class LoaderCog(commands.Cog):
         else:
             await ctx.send(description)
 
-async def setup(bot: 'UiPyBot'):
+
+async def setup(bot: "UiPy"):
     await bot.add_cog(LoaderCog(bot))

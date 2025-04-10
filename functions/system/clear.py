@@ -2,19 +2,19 @@ from discord.ext import commands
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from main import UiPyBot
+    from main import UiPy
+
 
 class ClearCog(commands.Cog):
-    def __init__(self, bot: 'UiPyBot'):
+    def __init__(self, bot: "UiPy"):
         self.bot = bot
 
     @commands.hybrid_command(
-        name="clear",
-        description="Remove one or more messages. Defaults to 2 messages."
+        name="clear", description="Remove one or more messages. Defaults to 2 messages."
     )
     @commands.has_guild_permissions(manage_messages=True)
     async def clear(self, ctx: commands.Context, amount: int = 2):
-        interaction = getattr(ctx, 'interaction', None)
+        interaction = getattr(ctx, "interaction", None)
         if interaction:
             await interaction.response.defer(ephemeral=True)
         deleted = await ctx.channel.purge(limit=amount)
@@ -36,5 +36,6 @@ class ClearCog(commands.Cog):
             print(f"[ERROR] An unexpected error occurred: {error}")
             raise error
 
-async def setup(bot: 'UiPyBot'):
+
+async def setup(bot: "UiPy"):
     await bot.add_cog(ClearCog(bot))

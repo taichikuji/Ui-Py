@@ -8,6 +8,9 @@ autopep8 = "*"
 pylint = "*"
 flake8 = "*"
 isort = "*"
+mypy = "*"
+black = "*"
+pyupgrade = "*"
 
 [packages]
 discord = {py = {extras = ["voice"], version = "*"}}

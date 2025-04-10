@@ -15,6 +15,7 @@
 
 SUCCESS='\e[39m\e[42m[SUCCESS]\e[49m \e[32m'
 ERROR='\e[39m\e[41m[ERROR]\e[49m \e[31m'
+export COMPOSE_BAKE=true
 
 log() {
     echo -e "$1 $2"

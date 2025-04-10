@@ -3,10 +3,11 @@ from discord.ext import commands
 from typing import Literal, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from main import UiPyBot
+    from main import UiPy
+
 
 class SyncCog(commands.Cog):
-    def __init__(self, bot: "UiPyBot"):
+    def __init__(self, bot: "UiPy"):
         self.bot = bot
 
     @commands.hybrid_group(
@@ -19,10 +20,12 @@ class SyncCog(commands.Cog):
             await ctx.send(
                 "Please specify a subcommand: `global` or `guild [id]`.\n"
                 "(e.g., `/sync guild` or `@BotName sync global`)",
-                ephemeral=True
+                ephemeral=True,
             )
 
-    @sync.command(name="global", description="Sync commands globally (can take up to an hour).")
+    @sync.command(
+        name="global", description="Sync commands globally (can take up to an hour)."
+    )
     @commands.is_owner()
     async def sync_global(self, ctx: commands.Context):
         is_slash = ctx.interaction is not None
@@ -48,7 +51,9 @@ class SyncCog(commands.Cog):
             else:
                 await ctx.send(msg)
 
-    @sync.command(name="guild", description="Sync commands to a specific guild (usually instant).")
+    @sync.command(
+        name="guild", description="Sync commands to a specific guild (usually instant)."
+    )
     @app_commands.describe(
         guild_id="Optional: Guild ID to sync to (defaults to current guild, or dev guild if configured)"
     )
@@ -97,7 +102,9 @@ class SyncCog(commands.Cog):
             else:
                 await ctx.send(msg)
         except HTTPException as e:
-            msg = f"Failed to sync to guild {target_guild_object.id}: {e.status} {e.text}"
+            msg = (
+                f"Failed to sync to guild {target_guild_object.id}: {e.status} {e.text}"
+            )
             if is_slash:
                 await ctx.interaction.followup.send(msg, ephemeral=True)
             else:
@@ -109,5 +116,6 @@ class SyncCog(commands.Cog):
             else:
                 await ctx.send(msg)
 
-async def setup(bot: "UiPyBot"):
+
+async def setup(bot: "UiPy"):
     await bot.add_cog(SyncCog(bot))

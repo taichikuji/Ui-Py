@@ -5,26 +5,27 @@ from typing import TYPE_CHECKING
 from asyncio import get_running_loop
 
 if TYPE_CHECKING:
-    from main import UiPyBot
+    from main import UiPy
+
 
 class MusicCog(commands.Cog):
-    def __init__(self, bot: 'UiPyBot'):
+    def __init__(self, bot: "UiPy"):
         self.bot = bot
         self.voice_clients = {}
         self.ydl_opts = {
-            'format': 'bestaudio/best',
-            'default_search': 'ytsearch',
-            'noplaylist': True,
-            'quiet': True,
-            'extract_flat': False,
+            "format": "bestaudio/best",
+            "default_search": "ytsearch",
+            "noplaylist": True,
+            "quiet": True,
+            "extract_flat": False,
         }
         self.ffmpeg_opts = {
-            'options': '-vn',
+            "options": "-vn",
         }
 
     @commands.hybrid_command(
         name="play",
-        description="Play a song from YouTube. Provide a search term or URL."
+        description="Play a song from YouTube. Provide a search term or URL.",
     )
     async def play(self, ctx: commands.Context, *, query: str = None):
         if not query:
@@ -45,7 +46,10 @@ class MusicCog(commands.Cog):
 
         voice_channel = ctx.author.voice.channel
 
-        if ctx.guild.id not in self.voice_clients or not self.voice_clients[ctx.guild.id].is_connected():
+        if (
+            ctx.guild.id not in self.voice_clients
+            or not self.voice_clients[ctx.guild.id].is_connected()
+        ):
             vc = await voice_channel.connect()
             self.voice_clients[ctx.guild.id] = vc
         else:
@@ -56,13 +60,15 @@ class MusicCog(commands.Cog):
 
         with YoutubeDL(self.ydl_opts) as ydl:
             try:
-                info = await get_running_loop().run_in_executor(None , lambda: ydl.extract_info(query, download=False))
-                if 'entries' in info:
-                    info = info['entries'][0]
-                if 'url' not in info:
+                info = await get_running_loop().run_in_executor(
+                    None, lambda: ydl.extract_info(query, download=False)
+                )
+                if "entries" in info:
+                    info = info["entries"][0]
+                if "url" not in info:
                     raise ValueError("No URL found in the extracted information.")
-                url = info['url']
-                title = info.get('title', 'Unknown Title')
+                url = info["url"]
+                title = info.get("title", "Unknown Title")
             except Exception as e:
                 description = f":x: Failed to retrieve video. Error: {e}"
                 if ctx.interaction:
@@ -80,8 +86,7 @@ class MusicCog(commands.Cog):
             await ctx.send(description)
 
     @commands.hybrid_command(
-        name="stop",
-        description="Stop the currently playing music and disconnect."
+        name="stop", description="Stop the currently playing music and disconnect."
     )
     async def stop(self, ctx: commands.Context):
         if ctx.guild.id in self.voice_clients:
@@ -98,8 +103,7 @@ class MusicCog(commands.Cog):
             await ctx.send(description)
 
     @commands.hybrid_command(
-        name="pause",
-        description="Pause the currently playing music."
+        name="pause", description="Pause the currently playing music."
     )
     async def pause(self, ctx: commands.Context):
         if ctx.guild.id in self.voice_clients:
@@ -117,10 +121,7 @@ class MusicCog(commands.Cog):
         else:
             await ctx.send(description)
 
-    @commands.hybrid_command(
-        name="resume",
-        description="Resume the paused music."
-    )
+    @commands.hybrid_command(name="resume", description="Resume the paused music.")
     async def resume(self, ctx: commands.Context):
         if ctx.guild.id in self.voice_clients:
             vc = self.voice_clients[ctx.guild.id]
@@ -137,5 +138,6 @@ class MusicCog(commands.Cog):
         else:
             await ctx.send(description)
 
-async def setup(bot: 'UiPyBot'):
+
+async def setup(bot: "UiPy"):
     await bot.add_cog(MusicCog(bot))

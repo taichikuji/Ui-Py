@@ -4,9 +4,10 @@ from glob import iglob
 from os import sep, environ
 from aiohttp import ClientSession
 
-TOKEN = environ.get('TOKEN')
+TOKEN = environ.get("TOKEN")
 if TOKEN is None:
     raise EnvironmentError("[ERROR] TOKEN environment variable not set")
+
 
 class UiPy(commands.AutoShardedBot):
     def __init__(self):
@@ -35,7 +36,9 @@ class UiPy(commands.AutoShardedBot):
                 print(f"[ERROR] Unexpected exception! [{module}]")
 
     async def on_ready(self):
-        display = Activity(name="Ping me, or use Slash Commands!", type=ActivityType.listening)
+        display = Activity(
+            name="Ping me, or use Slash Commands!", type=ActivityType.listening
+        )
         await self.change_presence(activity=display)
         print(f"[INFO] Ui Online! - {self.user.name} {self.user.id}")
 
@@ -56,6 +59,7 @@ class UiPy(commands.AutoShardedBot):
             return TypeError
         except Exception:
             print("[ERROR] An exception occurred!")
+
 
 if __name__ == "__main__":
     print("[INFO] Starting Ui-Py...")
