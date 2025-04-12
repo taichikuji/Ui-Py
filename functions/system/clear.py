@@ -1,5 +1,6 @@
 from discord.ext import commands
 from typing import TYPE_CHECKING
+from discord import Member
 
 if TYPE_CHECKING:
     from main import UiPy
@@ -10,15 +11,24 @@ class ClearCog(commands.Cog):
         self.bot = bot
 
     @commands.hybrid_command(
-        name="clear", description="Remove one or more messages. Defaults to 2 messages."
+        name="clear", description="Remove messages in bulk. Defaults to 2 messages."
     )
     @commands.has_guild_permissions(manage_messages=True)
-    async def clear(self, ctx: commands.Context, amount: int = 2):
+    async def clear(self, ctx: commands.Context, amount: int = 2, user: Member = None):
         interaction = getattr(ctx, "interaction", None)
         if interaction:
             await interaction.response.defer(ephemeral=True)
-        deleted = await ctx.channel.purge(limit=amount)
-        msg = f":wastebasket: Deleted {len(deleted)} messages."
+        
+        def check_message(message):
+            return user is None or message.author == user
+        
+        deleted = await ctx.channel.purge(limit=amount, check=check_message)
+
+        if user:
+            msg = f":wastebasket: Deleted {len(deleted)} messages from {user.display_name}."
+        else:
+            msg = f":wastebasket: Deleted {len(deleted)} messages."
+            
         if interaction:
             await interaction.followup.send(msg, ephemeral=True)
         else:
