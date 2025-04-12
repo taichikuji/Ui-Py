@@ -13,6 +13,7 @@ class MusicCog(commands.Cog):
         self.bot = bot
         self.voice_clients = {}
         self.queues: Dict[int, List[Tuple[str, str]]] = {}
+        self.command_channels = {}
         self.ydl_opts = {
             "format": "bestaudio/best",
             "default_search": "ytsearch",
@@ -21,6 +22,7 @@ class MusicCog(commands.Cog):
             "extract_flat": False,
         }
         self.ffmpeg_opts = {
+            "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
             "options": "-vn",
         }
 
@@ -77,7 +79,9 @@ class MusicCog(commands.Cog):
                 else:
                     await ctx.send(description)
                 return
-        
+
+        self.command_channels[ctx.guild.id] = ctx.channel
+
         if ctx.guild.id not in self.queues:
             self.queues[ctx.guild.id] = []
 
@@ -95,18 +99,21 @@ class MusicCog(commands.Cog):
 
     def _play_song(self, guild_id: int, url: str, title: str):
         vc = self.voice_clients[guild_id]
-        vc.play(FFmpegPCMAudio(url, **self.ffmpeg_opts), after=lambda e: self._play_next(guild_id, e))
+        vc.play(
+            FFmpegPCMAudio(url, **self.ffmpeg_opts),
+            after=lambda e: self._play_next(guild_id, e),
+        )
 
     def _play_next(self, guild_id: int, error=None):
         if error:
             print(f"Player error: {error}")
-        
+
         if guild_id in self.queues and self.queues[guild_id]:
             url, title = self.queues[guild_id].pop(0)
             self._play_song(guild_id, url, title)
-            guild = self.bot.get_guild(guild_id)
-            if guild and guild.system_channel:
-                coro = guild.system_channel.send(f":notes: Now playing: **{title}**")
+            if guild_id in self.command_channels and self.command_channels[guild_id]:
+                channel = self.command_channels[guild_id]
+                coro = channel.send(f":notes: Now playing: **{title}**")
                 future = run_coroutine_threadsafe(coro, self.bot.loop)
                 try:
                     future.result()
@@ -167,15 +174,20 @@ class MusicCog(commands.Cog):
             await ctx.interaction.response.send_message(description, ephemeral=True)
         else:
             await ctx.send(description)
-        
+
     @commands.hybrid_command(name="queue", description="Show the current music queue.")
     async def queue(self, ctx: commands.Context):
         if ctx.guild.id not in self.queues or not self.queues[ctx.guild.id]:
             description = ":x: The queue is empty."
         else:
-            queue_list = "\n".join([f"{i+1}. {title}" for i, (_, title) in enumerate(self.queues[ctx.guild.id])])
+            queue_list = "\n".join(
+                [
+                    f"{i+1}. {title}"
+                    for i, (_, title) in enumerate(self.queues[ctx.guild.id])
+                ]
+            )
             description = f":musical_note: **Current Queue:**\n{queue_list}"
-        
+
         if ctx.interaction:
             await ctx.interaction.response.send_message(description, ephemeral=True)
         else:
@@ -187,12 +199,12 @@ class MusicCog(commands.Cog):
             vc = self.voice_clients[ctx.guild.id]
             if vc.is_playing() or vc.is_paused():
                 vc.stop()
-                description = ":track_next: Skipped to the next song."
+                description = ":track_next: Skipped."
             else:
                 description = ":x: No music is currently playing."
         else:
             description = ":x: The bot is not connected to a voice channel."
-        
+
         if ctx.interaction:
             await ctx.interaction.response.send_message(description, ephemeral=True)
         else:
