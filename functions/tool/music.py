@@ -104,6 +104,17 @@ class MusicCog(commands.Cog):
             after=lambda e: self._play_next(guild_id, e),
         )
 
+    async def _disconnect_and_cleanup(self, guild_id: int):
+        if guild_id in self.voice_clients:
+            vc = self.voice_clients[guild_id]
+            if vc.is_connected():
+                await vc.disconnect()
+                
+            del self.voice_clients[guild_id]
+            if guild_id in self.queues:
+                self.queues[guild_id].clear()
+        
+        return True
     def _play_next(self, guild_id: int, error=None):
         if error:
             print(f"Player error: {error}")
@@ -119,17 +130,16 @@ class MusicCog(commands.Cog):
                     future.result()
                 except:
                     pass
+        else:
+            coro = self._disconnect_and_cleanup(guild_id)
+            future = run_coroutine_threadsafe(coro, self.bot.loop)
 
     @commands.hybrid_command(
         name="stop", description="Stop the currently playing music and disconnect."
     )
     async def stop(self, ctx: commands.Context):
         if ctx.guild.id in self.voice_clients:
-            vc = self.voice_clients[ctx.guild.id]
-            await vc.disconnect()
-            del self.voice_clients[ctx.guild.id]
-            if ctx.guild.id in self.queues:
-                self.queues[ctx.guild.id].clear()
+            await self._disconnect_and_cleanup(ctx.guild.id)
             description = ":stop_button: Stopped and disconnected."
         else:
             description = ":x: The bot is not connected to a voice channel."
