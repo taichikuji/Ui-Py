@@ -24,7 +24,8 @@ class SyncCog(commands.Cog):
             )
 
     @sync.command(
-        name="global", description="Sync commands globally (can take up to an hour)."
+        name="global", 
+        description="Sync commands globally (can take up to an hour)."
     )
     @commands.is_owner()
     async def sync_global(self, ctx: commands.Context):
@@ -52,7 +53,8 @@ class SyncCog(commands.Cog):
                 await ctx.send(msg)
 
     @sync.command(
-        name="guild", description="Sync commands to a specific guild (usually instant)."
+        name="guild", 
+        description="Sync commands to a specific guild (usually instant)."
     )
     @app_commands.describe(
         guild_id="Optional: Guild ID to sync to (defaults to current guild, or dev guild if configured)"

@@ -1,6 +1,7 @@
 from time import localtime, strftime
 from typing import TYPE_CHECKING
 from discord.ext import commands
+from discord import app_commands, Interaction
 
 if TYPE_CHECKING:
     from main import UiPy
@@ -10,9 +11,12 @@ class LoaderCog(commands.Cog):
     def __init__(self, bot: "UiPy"):
         self.bot = bot
 
-    @commands.hybrid_command(name="load", description="Load an extension.")
-    @commands.is_owner()
-    async def load(self, ctx: commands.Context, extension: str):
+    @app_commands.command(
+        name="load",
+        description="Load an extension."
+    )
+    @app_commands.checks.has_permissions(administrator=True)
+    async def load(self, interaction: Interaction, extension: str):
         try:
             await self.bot.load_extension(f"functions.{extension}")
             print(
@@ -35,14 +39,14 @@ class LoaderCog(commands.Cog):
             description = f":x: An unexpected error occurred: {e}"
             print(f"[ERROR] {description}")
 
-        if ctx.interaction:
-            await ctx.interaction.response.send_message(description, ephemeral=True)
-        else:
-            await ctx.send(description)
+        await interaction.response.send_message(description, ephemeral=True)
 
-    @commands.hybrid_command(name="unload", description="Unload an extension.")
-    @commands.is_owner()
-    async def unload(self, ctx: commands.Context, extension: str):
+    @app_commands.command(
+        name="unload",
+        description="Unload an extension."
+    )
+    @app_commands.checks.has_permissions(administrator=True)
+    async def unload(self, interaction: Interaction, extension: str):
         try:
             await self.bot.unload_extension(f"functions.{extension}")
             description = (
@@ -54,14 +58,14 @@ class LoaderCog(commands.Cog):
             description = f":x: An unexpected error occurred: {e}"
             print(f"[ERROR] {description}")
 
-        if ctx.interaction:
-            await ctx.interaction.response.send_message(description, ephemeral=True)
-        else:
-            await ctx.send(description)
+        await interaction.response.send_message(description, ephemeral=True)
 
-    @commands.hybrid_command(name="reload", description="Reload an extension.")
-    @commands.is_owner()
-    async def reload(self, ctx: commands.Context, extension: str):
+    @app_commands.command(
+        name="reload",
+        description="Reload an extension."
+    )
+    @app_commands.checks.has_permissions(administrator=True)
+    async def reload(self, interaction: Interaction, extension: str):
         try:
             await self.bot.reload_extension(f"functions.{extension}")
             print(
@@ -84,25 +88,7 @@ class LoaderCog(commands.Cog):
             description = f":x: An unexpected error occurred: {e}"
             print(f"[ERROR] {description}")
 
-        if ctx.interaction:
-            await ctx.interaction.response.send_message(description, ephemeral=True)
-        else:
-            await ctx.send(description)
-
-    @load.error
-    @unload.error
-    @reload.error
-    async def command_error(self, ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            description = ":x: You need to specify the module to load/unload/reload. Usage: `load <folder.file>`, `unload <folder.file>`, `reload <folder.file>`."
-        else:
-            description = str(error)
-            print(f"[ERROR] Command error: {description}")
-
-        if ctx.interaction:
-            await ctx.interaction.response.send_message(description, ephemeral=True)
-        else:
-            await ctx.send(description)
+        await interaction.response.send_message(description, ephemeral=True)
 
 
 async def setup(bot: "UiPy"):

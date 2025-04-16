@@ -20,7 +20,7 @@ class InfoCog(commands.Cog):
     )
     async def info(self, interaction: Interaction):
         embed = await self.create_embed()
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed)
 
     async def create_embed(self):
         em = {

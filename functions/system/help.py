@@ -1,7 +1,6 @@
 from typing import Optional, TYPE_CHECKING
-from discord import Embed, Interaction
+from discord import Embed, Interaction, app_commands
 from discord.ext import commands
-from discord.app_commands import command
 
 if TYPE_CHECKING:
     from main import UiPy
@@ -11,13 +10,11 @@ class HelpCog(commands.Cog):
     def __init__(self, bot: "UiPy"):
         self.bot = bot
 
-    @command(
+    @app_commands.command(
         name="help",
         description="Shows a list of available commands or details about a specific command.",
     )
-    async def show_help(
-        self, interaction: Interaction, command_name: Optional[str] = None
-    ):
+    async def show_help(self, interaction: Interaction, command_name: Optional[str] = None):
         if command_name is None:
             embed = Embed(
                 title="Help",
@@ -30,7 +27,7 @@ class HelpCog(commands.Cog):
                     value=cmd.description or "No description",
                     inline=False,
                 )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(embed=embed)
         else:
             command = self.bot.tree.get_command(command_name)
             if command:
