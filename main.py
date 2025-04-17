@@ -11,11 +11,13 @@ if TOKEN is None:
 
 class UiPy(commands.AutoShardedBot):
     def __init__(self):
+        intents = Intents.default()
+        intents.message_content = True
         super().__init__(
             description="Do you want coffee, or tea?",
             command_prefix=commands.when_mentioned,
             case_insensitive=True,
-            intents=Intents.default(),
+            intents=intents,
         )
         self._bot_token = TOKEN
         self.session: ClientSession | None = None
