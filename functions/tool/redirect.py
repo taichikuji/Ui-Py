@@ -38,8 +38,7 @@ class ReplaceCog(commands.Cog):
             return
         if 'http://' not in message.content and 'https://' not in message.content:
             return
-        fixed = self.replace_text(message.content)
-        if fixed != message.content:
+        if (fixed := self.replace_text(message.content)) != message.content:
             await message.channel.send(fixed)
             try:
                 await message.delete()

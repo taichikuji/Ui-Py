@@ -33,8 +33,10 @@ class SyncCog(commands.Cog):
         if is_slash:
             await ctx.defer(ephemeral=True)
         try:
-            synced_commands = await self.bot.tree.sync()
-            msg = f"Synced {len(synced_commands)} commands globally."
+            if synced_commands := await self.bot.tree.sync():
+                msg = f"Synced {len(synced_commands)} commands globally."
+            else:
+                msg = "No commands were synced globally."
             if is_slash:
                 await ctx.interaction.followup.send(msg, ephemeral=True)
             else:
@@ -46,7 +48,7 @@ class SyncCog(commands.Cog):
             else:
                 await ctx.send(msg)
         except Exception as e:
-            msg = "[ERROR] An unexpected error occurred during global sync."
+            msg = "An unexpected error occurred during global sync."
             if is_slash:
                 await ctx.interaction.followup.send(msg, ephemeral=True)
             else:
@@ -91,8 +93,10 @@ class SyncCog(commands.Cog):
 
         try:
             self.bot.tree.clear_commands(guild=target_guild_object)
-            synced_commands = await self.bot.tree.sync(guild=target_guild_object)
-            msg = f"Synced {len(synced_commands)} commands to guild {target_guild_object.id}."
+            if synced_commands := await self.bot.tree.sync(guild=target_guild_object):
+                msg = f"Synced {len(synced_commands)} commands to guild {target_guild_object.id}."
+            else:
+                msg = f"No commands to sync to guild {target_guild_object.id}."
             if is_slash:
                 await ctx.interaction.followup.send(msg, ephemeral=True)
             else:
