@@ -1,13 +1,32 @@
-FROM python:3.8.5-slim
+FROM python:3.12-slim AS builder
 
 WORKDIR /usr/src/app
 
-RUN apt-get update -y && pip install pipenv && apt-get install build-essential git -y --no-install-recommends
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends build-essential git libffi-dev ffmpeg libnacl-dev python3-dev libopus-dev && \
+    pip install pipenv
 
-COPY Pipfile .
-COPY Pipfile.lock .
-RUN pipenv lock -r > requirements.txt && pip install -r requirements.txt && pip uninstall pipenv -y && apt-get purge build-essential build-essential git -y -o APT::AutoRemove::RecommendsImportant=false
+RUN mkdir -p /ffmpeg-deps/usr/bin && \
+    cp $(which ffmpeg) $(which ffprobe) /ffmpeg-deps/usr/bin/ && \
+    mkdir -p /ffmpeg-deps/usr/lib && \
+    ldd $(which ffmpeg) | grep "=> /" | awk '{print $3}' | xargs -I '{}' cp -v '{}' /ffmpeg-deps/usr/lib/
 
-COPY . .
+COPY Pipfile Pipfile.lock ./
+RUN pipenv requirements > requirements.txt
 
-CMD [ "python", "./main.py" ]
+FROM python:3.12-slim
+
+WORKDIR /usr/src/app
+
+COPY --from=builder /usr/src/app/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY --from=builder /ffmpeg-deps/usr/bin/* /usr/bin/
+COPY --from=builder /ffmpeg-deps/usr/lib/* /usr/lib/
+
+RUN ldconfig
+
+COPY main.py ./
+COPY functions ./functions/
+
+CMD ["python", "./main.py"]

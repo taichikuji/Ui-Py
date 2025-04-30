@@ -1,31 +1,64 @@
-# Miia
-## Who is Miia?
+# Ui-Py
+## Who is Ui?
 
-Miia is a bot written in Python, based on the snake girl ( or Lamia ) from the Anime and Manga Monster Musume.
+Ui is a bot written in Python, inspired by the character Ui Hirasawa from the K-On! show.
 
-<p align="center"><img src="media/miia.webp" width="150px" /><br/>
-<img src="https://img.shields.io/github/license/taichikuji/Miia-Py?color=FF3351&logo=github" />
-<img src="https://img.shields.io/github/commit-activity/w/taichikuji/Miia-Py?label=commits&logo=github" />
-<img src="https://img.shields.io/librariesio/github/taichikuji/Miia-Py?logo=github" />
+<p align="center"><img src="media/ui.webp" width="150px" /><br/>
+<img src="https://img.shields.io/github/license/taichikuji/Ui-Py?color=FF3351&logo=github" />
+<img src="https://img.shields.io/github/commit-activity/w/taichikuji/Ui-Py?label=commits&logo=github" />
+<img src="https://img.shields.io/librariesio/github/taichikuji/Ui-Py?logo=github" />
 </p>
 
 ## Why Python?
 
-Mainly to learn Python a bit more and... After trying it for a few days, it's super fun!
+Because this is a rewrite and retry at writing best practices code in Python, keeping modularity as it was with my previous projects.
 
 ## How do I make it work?
 
-<a href="https://github.com/taichikuji/Miia-Py/wiki/How-to-get-the-bot-working/">Here you have info for that!</a>
+<a href="https://github.com/taichikuji/Ui-Py/wiki/How-to-get-the-bot-working/">// We are building it!</a>
+
+To deploy, you have the following options:
+
+1. **Using Docker-Compose**  
+    Pass the variable into your `docker-compose.yml` file or export it:
+    ```bash
+    export TOKEN='TOKEN'
+    ```  
+    Afterwards, deploy easily with:
+    ```bash
+    ./deploy-dc.sh
+    ```
+
+2. **Using Docker Build and Run**  
+    Build the image:
+    ```bash
+    docker build -t ui:latest .
+    ```  
+    Run the container with the TOKEN environment variable:
+    ```bash
+    docker run -e TOKEN="TOKEN" ui:latest
+    ```
+### 3. **Using ghcr.io**
+
+You can now deploy using GitHub Packages without building the Dockerfile yourself!
+
+Simply pull the image with the following command:
+
+```bash
+docker pull ghcr.io/taichikuji/ui-py:latest
+```
+
+This image can even be used in your Kubernetes cluster!
+
+We don't have a Kubernetes deployment YAML at the moment, but one may be provided in the future.
 
 ## Uses:
 
-- <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/github/pipenv/locked/python-version/taichikuji/Miia-Py"/></a>
+- <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/github/pipenv/locked/python-version/taichikuji/Ui-Py"/></a>
 - <a href="https://pypi.org/project/pipenv/"><img src="https://img.shields.io/pypi/v/pipenv"/></a>
 
 ### Dependencies
 
-- <a href="https://pypi.org/project/discord.py/"><img src="https://img.shields.io/github/pipenv/locked/dependency-version/taichikuji/Miia-Py/discord.py/master"/></a>
-- <a href="https://pypi.org/project/aiohttp/"><img src="https://img.shields.io/github/pipenv/locked/dependency-version/taichikuji/Miia-Py/aiohttp/master"/></a>
-- <a href="https://pypi.org/project/psutil/"><img src="https://img.shields.io/github/pipenv/locked/dependency-version/taichikuji/Miia-Py/psutil/master"/></a>
-- <a href="https://pypi.org/project/praw/"><img src="https://img.shields.io/github/pipenv/locked/dependency-version/taichikuji/Miia-Py/praw/master"/></a>
-- <a href="https://github.com/Rapptz/discord-ext-menus"><img src="https://img.shields.io/github/pipenv/locked/dependency-version/taichikuji/Miia-Py/discord-ext-menus/master"/></a>
+- <a href="https://pypi.org/project/discord.py/"><img src="https://img.shields.io/github/pipenv/locked/dependency-version/taichikuji/Ui-Py/discord.py/master"/></a>
+- <a href="https://pypi.org/project/aiohttp/"><img src="https://img.shields.io/github/pipenv/locked/dependency-version/taichikuji/Ui-Py/aiohttp/master"/></a>
+

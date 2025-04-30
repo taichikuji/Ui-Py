@@ -1,39 +1,39 @@
 from os import getpid
 from platform import machine, python_version, system
+from typing import TYPE_CHECKING
 
-from discord import Embed
+from discord import Embed, app_commands, Interaction
 from discord.ext import commands
 from psutil import Process
 
+if TYPE_CHECKING:
+    from main import UiPy
 
-class miia(commands.Cog):
-    def __init__(self, bot):
+
+class InfoCog(commands.Cog):
+    def __init__(self, bot: "UiPy"):
         self.bot = bot
 
-    @commands.command(
+    @app_commands.command(
         name="info",
-        brief="Show information about the bot",
-        description="Show information about the bot, versions of dependencies, uptime or memory usage of the bot!",
-        usage="`info`",
+        description="Show information about the bot, including versions, uptime, and memory usage.",
     )
-    async def info(self, ctx):
-        embed = await self.create_embed(ctx)
-        await ctx.send(embed=embed)
+    async def info(self, interaction: Interaction):
+        embed = await self.create_embed()
+        await interaction.response.send_message(embed=embed)
 
-    async def create_embed(self, ctx):
+    async def create_embed(self):
         em = {
-            "title": "Bot's info",
-            "description": "Oh, you wanna know more about me? I'm [Miia](https://github.com/taichikuji/Miia-Py). Here's some information regarding me and my dependencies!",
+            "title": "Bot's Info",
+            "description": "Here's some information about me and my dependencies!",
             "color": self.bot.color,
-            "thumbnail": {"url": str(self.bot.user.avatar_url)},
             "fields": [
                 {
                     "name": "Bot version",
-                    "value": f"**Python**: {python_version()}\n"
-                    f"**Miia-Py**: 0.2.0\n",
+                    "value": f"**Python**: {python_version()}\n**Ui-Py**: 0.2.0",
                     "inline": True,
                 },
-                {"name": "OS", "value": f"**{system()}**: {machine()}"},
+                {"name": "OS", "value": f"**{system()}**: {machine()}", "inline": True},
                 {"name": "Uptime", "value": await self.uptime(), "inline": True},
                 {
                     "name": "Memory",
@@ -41,29 +41,22 @@ class miia(commands.Cog):
                     "inline": True,
                 },
             ],
-            "footer": {
-                "text": f"Made by {self.bot.get_user(id=self.bot.owner_id)}",
-                "icon_url": f"{self.bot.get_user(id=self.bot.owner_id).avatar_url}",
-            },
         }
-        embed = Embed.from_dict(em)
-        return embed
+        return Embed.from_dict(em)
 
     @staticmethod
     async def _get_mem_usage():
         mem_usage = float(Process(getpid()).memory_info().rss) / 1000000
-        return str(round(mem_usage, 2)) + " MB"
+        return f"{round(mem_usage, 2)} MB"
 
     async def uptime(self):
-        uptime = None
         with open("/proc/uptime", "r") as f:
             uptime = f.read().split(" ")[0].strip()
         uptime = int(float(uptime))
         uptime_hours = uptime // 3600
         uptime_minutes = (uptime % 3600) // 60
-        uptime = f"{str(uptime_hours)} hours, {str(uptime_minutes)} minutes"
-        return uptime
+        return f"{uptime_hours} hours, {uptime_minutes} minutes"
 
 
-def setup(bot):
-    bot.add_cog(miia(bot))
+async def setup(bot: "UiPy"):
+    await bot.add_cog(InfoCog(bot))

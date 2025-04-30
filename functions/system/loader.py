@@ -1,85 +1,95 @@
 from time import localtime, strftime
-
+from typing import TYPE_CHECKING
 from discord.ext import commands
+from discord import app_commands, Interaction
+
+if TYPE_CHECKING:
+    from main import UiPy
 
 
-class miia(commands.Cog):
-    def __init__(self, bot):
+class LoaderCog(commands.Cog):
+    def __init__(self, bot: "UiPy"):
         self.bot = bot
 
-    @commands.command(
+    @app_commands.command(
         name="load",
-        brief="Load an extension",
-        description="Load an extension",
-        usage="`load <folder.file>`",
+        description="Load an extension."
     )
-    @commands.is_owner()
-    async def load(self, ctx, *, extension):
+    @app_commands.checks.has_permissions(administrator=True)
+    async def load(self, interaction: Interaction, extension: str):
         try:
-            self.bot.load_extension(f"functions.{extension}")
+            await self.bot.load_extension(f"functions.{extension}")
             print(
-                f"{extension} loaded at {strftime('%A, %d %b %Y, %I:%M:%S %p', localtime())}."
+                f"[INFO] {extension} loaded at {strftime('%A, %d %b %Y, %I:%M:%S %p', localtime())}."
             )
-            description = ":o: It's working! The module is up and running!"
+            description = (
+                f":white_check_mark: Loaded extension '{extension}' successfully."
+            )
         except commands.ExtensionAlreadyLoaded:
             description = (
-                ":ok_hand: Don't worry about it. The module is already loaded!"
+                f":information_source: Extension '{extension}' is already loaded."
             )
         except commands.ExtensionNotFound:
-            description = (
-                ":x: Uh oh... This is weird, it seems i can't find the module?"
-            )
+            description = f":x: Extension '{extension}' not found."
         except commands.ExtensionFailed:
-            description = ":x: Uh oh... I could find the module, but it gives me an error. Maybe try looking at the logs or asking my darling?"
+            description = f":x: Extension '{extension}' failed to load due to an error."
         except commands.NoEntryPointError:
-            description = ":x: This module can't load because it doesn't have a setup function. Try adding it and load it again!"
-        await ctx.send(description)
+            description = f":x: Extension '{extension}' does not have a setup function."
+        except Exception as e:
+            description = f":x: An unexpected error occurred: {e}"
+            print(f"[ERROR] {description}")
 
-    @commands.command(
+        await interaction.response.send_message(description, ephemeral=True)
+
+    @app_commands.command(
         name="unload",
-        brief="Unload an extension",
-        description="Unload an extension",
-        usage="`unload <folder.file>`",
+        description="Unload an extension."
     )
-    @commands.is_owner()
-    async def unload(self, ctx, *, extension):
+    @app_commands.checks.has_permissions(administrator=True)
+    async def unload(self, interaction: Interaction, extension: str):
         try:
-            self.bot.unload_extension(f"functions.{extension}")
-            description = ":o: It's working! The module is disconnected!"
-        except commands.ExtensionNotLoaded:
+            await self.bot.unload_extension(f"functions.{extension}")
             description = (
-                ":ok_hand: Don't worry about it. The module is already unloaded!"
+                f":white_check_mark: Unloaded extension '{extension}' successfully."
             )
-        await ctx.send(description)
+        except commands.ExtensionNotLoaded:
+            description = f":information_source: Extension '{extension}' is not loaded."
+        except Exception as e:
+            description = f":x: An unexpected error occurred: {e}"
+            print(f"[ERROR] {description}")
 
-    @commands.command(
+        await interaction.response.send_message(description, ephemeral=True)
+
+    @app_commands.command(
         name="reload",
-        brief="Reload an extension",
-        description="Reload an extension",
-        usage="`reload <folder.file>`",
+        description="Reload an extension."
     )
-    @commands.is_owner()
-    async def reload(self, ctx, *, extension):
+    @app_commands.checks.has_permissions(administrator=True)
+    async def reload(self, interaction: Interaction, extension: str):
         try:
-            self.bot.reload_extension(f"functions.{extension}")
+            await self.bot.reload_extension(f"functions.{extension}")
             print(
-                f"{extension} reloaded at {strftime('%A, %d %b %Y, %I:%M:%S %p', localtime())}."
+                f"[INFO] {extension} reloaded at {strftime('%A, %d %b %Y, %I:%M:%S %p', localtime())}."
             )
             description = (
-                ":o: It's working! The module has been restarted successfully!"
+                f":white_check_mark: Reloaded extension '{extension}' successfully."
             )
         except commands.ExtensionNotLoaded:
-            description = ":x: Uh oh... I couldn't reload this module"
+            description = f":x: Extension '{extension}' is not loaded."
         except commands.ExtensionNotFound:
-            description = (
-                ":x: Uh oh... This is weird, it seems i can't find the module?"
-            )
+            description = f":x: Extension '{extension}' not found."
         except commands.ExtensionFailed:
-            description = ":x: Uh oh... I could find the module, but it gives me an error. Maybe try looking at the logs or asking my darling?"
+            description = (
+                f":x: Extension '{extension}' failed to reload due to an error."
+            )
         except commands.NoEntryPointError:
-            description = ":x: This module can't load because it doesn't have a setup function. Try adding it and load it again!"
-        await ctx.send(description)
+            description = f":x: Extension '{extension}' does not have a setup function."
+        except Exception as e:
+            description = f":x: An unexpected error occurred: {e}"
+            print(f"[ERROR] {description}")
+
+        await interaction.response.send_message(description, ephemeral=True)
 
 
-def setup(bot):
-    bot.add_cog(miia(bot))
+async def setup(bot: "UiPy"):
+    await bot.add_cog(LoaderCog(bot))

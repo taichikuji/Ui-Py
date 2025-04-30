@@ -1,96 +1,47 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+from discord import Embed, Interaction, app_commands
+from discord.ext import commands
 
-from discord import Embed
-from discord.ext.commands import Cog, command
-from discord.ext.menus import ListPageSource, MenuPages
-from discord.utils import get
-
-
-def syntax(command):
-    cmd_and_aliases = "|".join([str(command), *command.aliases])
-    params = []
-
-    for key, value in command.params.items():
-        if key not in ("self", "ctx"):
-            params.append(f"[{key}]" if "NoneType" in str(value) else f"<{key}>")
-
-    params = " ".join(params)
-
-    return f"`{cmd_and_aliases} {params}`"
+if TYPE_CHECKING:
+    from main import UiPy
 
 
-class HelpMenu(ListPageSource):
-    def __init__(self, ctx, data):
-        self.ctx = ctx
-        super().__init__(data, per_page=5)
-
-    async def write_page(self, menu, fields=[]):
-        offset = (menu.current_page * self.per_page) + 1
-        len_data = len(self.entries)
-        # fields is created but empty so that it can add the values afterwards
-        em = {
-            "title": "Help",
-            "description": "Uh... Yes! I'll do my best! Here are the commands",
-            "color": self.ctx.bot.color,
-            "thumbnail": {"url": str(self.ctx.guild.me.avatar_url)},
-            "footer": {
-                "text": f"Page {offset:,} - {min(len_data, offset+self.per_page-1):,}/{len_data}"
-            },
-            "fields": [],
-        }
-        for name, value in fields:
-            em["fields"].append({"name": name, "value": value, "inline": False})
-        embed = Embed.from_dict(em)
-        return embed
-
-    async def format_page(self, menu, entries):
-        fields = []
-
-        for entry in entries:
-            fields.append((entry.brief or "No description", syntax(entry)))
-
-        return await self.write_page(menu, fields)
-
-
-class miia(Cog):
-    def __init__(self, bot):
+class HelpCog(commands.Cog):
+    def __init__(self, bot: "UiPy"):
         self.bot = bot
-        self.bot.remove_command("help")
 
-    async def cmd_help(self, ctx, command):
-        em = {
-            "title": f"`{command}`",
-            "description": syntax(command),
-            "color": self.bot.color,
-            "fields": [
-                {"name": "Command description", "value": f"{command.description}"},
-                {"name": "Command usage", "value": f"{command.usage}"},
-            ],
-        }
-        embed = Embed.from_dict(em)
-        await ctx.send(embed=embed)
-
-    @command(
+    @app_commands.command(
         name="help",
-        brief="Shows a list of the available commands",
-        description="Shows a list of the available commands, a brief description and the parameters!",
-        usage="`help ( <command> )`",
+        description="Shows a list of available commands or details about a specific command.",
     )
-    async def show_help(self, ctx, cmd: Optional[str]):
-        if cmd is None:
-            menu = MenuPages(
-                source=HelpMenu(ctx, list(self.bot.commands)),
-                delete_message_after=True,
-                timeout=60.0,
+    async def show_help(self, interaction: Interaction, command_name: Optional[str] = None):
+        if command_name is None:
+            embed = Embed(
+                title="Help",
+                description="Here are the available commands:",
+                color=self.bot.color,
             )
-            await menu.start(ctx)
+            for cmd in self.bot.tree.get_commands():
+                embed.add_field(
+                    name=cmd.name,
+                    value=cmd.description or "No description",
+                    inline=False,
+                )
+            await interaction.response.send_message(embed=embed)
         else:
-            if command := get(self.bot.commands, name=cmd):
-                await self.cmd_help(ctx, command)
-
+            command = self.bot.tree.get_command(command_name)
+            if command:
+                embed = Embed(
+                    title=f"Help: {command.name}",
+                    description=command.description or "No description",
+                    color=self.bot.color,
+                )
+                await interaction.response.send_message(embed=embed, ephemeral=True)
             else:
-                await ctx.send("That command does not exist.")
+                await interaction.response.send_message(
+                    f":x: Command `{command_name}` not found.", ephemeral=True
+                )
 
 
-def setup(bot):
-    bot.add_cog(miia(bot))
+async def setup(bot: "UiPy"):
+    await bot.add_cog(HelpCog(bot))

@@ -1,6 +1,7 @@
-version: "3.8"
 services:
-  bot:
+  discord:
     build: ./
     restart: always
-    container_name: discord-miia
+    container_name: ui
+    environment:
+      - TOKEN=${TOKEN}
