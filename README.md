@@ -15,7 +15,7 @@ Because this is a rewrite and retry at writing best practices code in Python, ke
 
 ## How do I make it work?
 
-<a href="https://github.com/taichikuji/Ui-Py/wiki/How-to-get-the-bot-working/">// We are building it!</a>
+[Check our setup guide in the wiki](https://github.com/taichikuji/Ui-Py/wiki/How-to-get-the-bot-working/)
 
 To deploy, you have the following options:
 
@@ -51,6 +51,18 @@ docker pull ghcr.io/taichikuji/ui-py:latest
 This image can even be used in your Kubernetes cluster!
 
 We don't have a Kubernetes deployment YAML at the moment, but one may be provided in the future.
+
+## Contributing
+
+The project follows a modular architecture, making it easy to add new features. New functionality can be added by creating new Python files in the appropriate directories under `functions/`.
+
+We welcome contributions from the community! When contributing, GitHub will automatically provide:
+- Bug report template when reporting bugs
+- Feature request template when suggesting features
+- Pull request template when submitting code changes
+
+For detailed contribution guidelines, see our [contribution guide](.github/CONTRIBUTING.md).
+For detailed project documentation, visit our [wiki](https://github.com/taichikuji/Ui-Py/wiki).
 
 ## Uses:
 

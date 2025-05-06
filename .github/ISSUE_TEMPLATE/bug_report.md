@@ -1,31 +1,36 @@
 ---
-name: Bug report
-about: Create a report to help us improve
-title: "[BUG]"
+name: Bug Report
+about: Report a bug or issue with Ui-Py
+title: "[BUG] "
 labels: bug
 assignees: ''
-
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+# Bug Report
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+## Description
+<!-- Provide a clear and concise description of the bug -->
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+## Steps to Reproduce
+<!-- List the steps to reproduce the behavior -->
+1. 
+2.
+3.
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+## Expected Behavior
+<!-- Describe what you expected to happen -->
 
-**Desktop (please complete the following information):**
- - OS: [e.g. Ubuntu]
- - Python version [e.g. 3.8]
+## Actual Behavior
+<!-- Describe what actually happened -->
 
-**Additional context**
-Add any other context about the problem here.
+## Screenshots/Logs
+<!-- If applicable, add screenshots or logs to help explain your problem -->
+
+## Environment
+- OS: <!-- e.g. Ubuntu 22.04, Windows 11, etc. -->
+- Python version: <!-- e.g. 3.12.0 -->
+- Bot version/commit: <!-- e.g. v0.2.0 or commit hash -->
+- Deployment method: <!-- e.g. Docker, direct Python, etc. -->
+
+## Additional Context
+<!-- Add any other context about the problem here -->
