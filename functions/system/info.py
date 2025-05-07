@@ -1,10 +1,11 @@
 from os import getpid
 from platform import machine, python_version, system
 from typing import TYPE_CHECKING
+import time
 
 from discord import Embed, app_commands, Interaction
 from discord.ext import commands
-from psutil import Process
+from psutil import Process, boot_time
 
 if TYPE_CHECKING:
     from main import UiPy
@@ -50,11 +51,11 @@ class InfoCog(commands.Cog):
         return f"{round(mem_usage, 2)} MB"
 
     async def uptime(self):
-        with open("/proc/uptime", "r") as f:
-            uptime = f.read().split(" ")[0].strip()
-        uptime = int(float(uptime))
-        uptime_hours = uptime // 3600
-        uptime_minutes = (uptime % 3600) // 60
+        boot_time_timestamp = boot_time()
+        current_time_timestamp = time.time()
+        uptime_seconds = int(current_time_timestamp - boot_time_timestamp)
+        uptime_hours = uptime_seconds // 3600
+        uptime_minutes = (uptime_seconds % 3600) // 60
         return f"{uptime_hours} hours, {uptime_minutes} minutes"
 
 
