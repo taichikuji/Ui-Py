@@ -98,8 +98,11 @@ class MusicCog(commands.Cog):
 
     def _play_next(self, guild_id: int, error=None):
         if error:
-            print(f"Player error: {error}")
+            print(f"Player error for guild {guild_id}: {error}")
 
+        if (guild_id not in self.voice_clients or not self.voice_clients[guild_id].is_connected()):
+            return
+        
         if guild_id in self.queues and self.queues[guild_id]:
             url, title = self.queues[guild_id].pop(0)
             self._play_song(guild_id, url, title)
