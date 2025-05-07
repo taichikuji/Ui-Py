@@ -39,7 +39,6 @@ class ClearCog(commands.Cog):
             )
         else:
             print(f"[ERROR] An unexpected error occurred: {error}")
-            raise error
 
 
 async def setup(bot: "UiPy"):
