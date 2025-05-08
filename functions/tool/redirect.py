@@ -18,7 +18,7 @@ class ReplaceCog(commands.Cog):
             (compile(r'https?://(?:www\.|vm\.)?tiktok\.com/(?P<rest>\S+)'),
              r'https://vm.tnktok.com/\g<rest>'),
             (compile(r'https?://(?:www\.)?instagram\.com/(?P<rest>\S+)'),
-             r'https://ddinstagram.com/\g<rest>'),
+             r'https://instagramez.com/\g<rest>'),
             (compile(r'https?://(?:www\.)?pixiv\.net/(?P<rest>\S+)'),
              r'https://phixiv.net/\g<rest>'),
             (compile(r'https?://(?:www\.)?youtube\.com/shorts/(?P<rest>\S+)'),
