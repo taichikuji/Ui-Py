@@ -1,7 +1,7 @@
-from discord import Intents, Activity, ActivityType
-from discord.ext import commands
 from glob import iglob
 from os import sep, environ
+from discord import Intents, Activity, ActivityType
+from discord.ext import commands
 from aiohttp import ClientSession
 
 TOKEN = environ.get("TOKEN")
@@ -58,9 +58,8 @@ class UiPy(commands.AutoShardedBot):
             super().run(self._bot_token, reconnect=True, **kwargs)
         except TypeError:
             print("[ERROR] An unexpected keyword argument was passed!")
-            return TypeError
-        except Exception:
-            print("[ERROR] An exception occurred!")
+        except Exception as e:
+            print(f"[ERROR] An exception occurred: {e}")
 
 
 if __name__ == "__main__":

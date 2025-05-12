@@ -1,6 +1,6 @@
+from typing import Literal, Optional, TYPE_CHECKING
 from discord import app_commands, Object, HTTPException, Forbidden
 from discord.ext import commands
-from typing import Literal, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from main import UiPy

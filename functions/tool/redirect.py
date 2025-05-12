@@ -1,7 +1,7 @@
-from discord.ext import commands
 from re import compile
-from discord import Message
 from typing import TYPE_CHECKING, List, Pattern, Tuple
+from discord.ext import commands
+from discord import Message
 
 if TYPE_CHECKING:
     from main import UiPy

@@ -4,12 +4,12 @@ verify_ssl = true
 name = "pypi"
 
 [dev-packages]
-autopep8 = "*"
 pylint = "*"
+black = "*"
+autopep8 = "*"
 flake8 = "*"
 isort = "*"
 mypy = "*"
-black = "*"
 pyupgrade = "*"
 
 [packages]

@@ -1,8 +1,8 @@
+from typing import TYPE_CHECKING, Dict, List, Tuple
+from asyncio import get_running_loop, run_coroutine_threadsafe
 from discord.ext import commands
 from discord import FFmpegPCMAudio, Interaction, app_commands
 from yt_dlp import YoutubeDL
-from typing import TYPE_CHECKING, Dict, List, Tuple
-from asyncio import get_running_loop, run_coroutine_threadsafe
 
 if TYPE_CHECKING:
     from main import UiPy

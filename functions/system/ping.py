@@ -1,5 +1,5 @@
-from discord.ext import commands
 from typing import TYPE_CHECKING
+from discord.ext import commands
 from discord import app_commands, Interaction
 
 if TYPE_CHECKING:
