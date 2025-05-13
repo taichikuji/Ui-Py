@@ -1,4 +1,4 @@
-from typing import Literal, Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 from discord import app_commands, Object, HTTPException, Forbidden
 from discord.ext import commands
 
@@ -47,8 +47,8 @@ class SyncCog(commands.Cog):
                 await ctx.interaction.followup.send(msg, ephemeral=True)
             else:
                 await ctx.send(msg)
-        except Exception as e:
-            msg = "An unexpected error occurred during global sync."
+        except Exception:
+            msg = f"An unexpected error occurred during global sync: {e}"
             if is_slash:
                 await ctx.interaction.followup.send(msg, ephemeral=True)
             else:
@@ -102,7 +102,7 @@ class SyncCog(commands.Cog):
             else:
                 await ctx.send(msg)
         except Forbidden as e:
-            msg = f"Failed to sync to guild {target_guild_object.id}: Missing Permissions."
+            msg = f"Failed to sync to guild {target_guild_object.id}: Missing Permissions. {e}"
             if is_slash:
                 await ctx.interaction.followup.send(msg, ephemeral=True)
             else:
@@ -115,8 +115,8 @@ class SyncCog(commands.Cog):
                 await ctx.interaction.followup.send(msg, ephemeral=True)
             else:
                 await ctx.send(msg)
-        except Exception as e:
-            msg = f"An unexpected error occurred during guild sync for guild {target_guild_object.id}."
+        except Exception:
+            msg = f"An unexpected error occurred during guild sync for guild {target_guild_object.id}: {e}"
             if is_slash:
                 await ctx.interaction.followup.send(msg, ephemeral=True)
             else:

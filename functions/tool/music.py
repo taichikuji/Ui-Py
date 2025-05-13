@@ -111,8 +111,8 @@ class MusicCog(commands.Cog):
                 future = run_coroutine_threadsafe(coro, self.bot.loop)
                 try:
                     future.result()
-                except:
-                    pass
+                except Exception as e:
+                    print(f"Error sending message: {e}")
         else:
             coro = self._disconnect_and_cleanup(guild_id)
             future = run_coroutine_threadsafe(coro, self.bot.loop)
@@ -185,6 +185,7 @@ class MusicCog(commands.Cog):
                 await interaction.response.send_message(":x: No music is currently playing.", ephemeral=True)
         else:
             await interaction.response.send_message(":x: The bot is not connected to a voice channel.", ephemeral=True)
+
 
 async def setup(bot: "UiPy"):
     await bot.add_cog(MusicCog(bot))

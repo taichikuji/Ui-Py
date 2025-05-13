@@ -27,10 +27,12 @@ class ReplaceCog(commands.Cog):
              r'https://vxreddit.com/\g<rest>'),
         ]
 
+
     def replace_text(self, text: str) -> str:
         for pattern, repl in self.patterns:
             text = pattern.sub(repl, text)
         return text
+
 
     @commands.Cog.listener()
     async def on_message(self, message: Message) -> None:
@@ -44,6 +46,7 @@ class ReplaceCog(commands.Cog):
                 await message.delete()
             except Exception:
                 pass
+
 
 async def setup(bot: "UiPy"):
     await bot.add_cog(ReplaceCog(bot))
