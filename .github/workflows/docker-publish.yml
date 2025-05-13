@@ -28,41 +28,25 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Build and push linux/amd64 image
-      uses: docker/build-push-action@v6
+    - name: Docker meta
+      id: meta
+      uses: docker/metadata-action@v5
       with:
-        context: .
-        file: ./Dockerfile
-        platforms: linux/amd64
-        push: true
-        tags: ghcr.io/${{ github.repository_owner }}/ui-py:amd64
-        provenance: false
-        sbom: false
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        images: ghcr.io/${{ github.repository_owner }}/ui-py
+        tags: |
+          type=raw,value=latest,enable={{is_default_branch}}
+          type=sha
 
-    - name: Build and push linux/arm64 image
-      uses: docker/build-push-action@v6
-      with:
-        context: .
-        file: ./Dockerfile
-        platforms: linux/arm64
-        push: true
-        tags: ghcr.io/${{ github.repository_owner }}/ui-py:arm64
-        provenance: false
-        sbom: false
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-
-    - name: Build and push multi-platform latest image
+    - name: Build and push multi-platform image
       uses: docker/build-push-action@v6
       with:
         context: .
         file: ./Dockerfile
         platforms: linux/amd64,linux/arm64
-        push: true
-        tags: ghcr.io/${{ github.repository_owner }}/ui-py:latest
-        provenance: false
-        sbom: false
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        provenance: true
+        sbom: true
         cache-from: type=gha
         cache-to: type=gha,mode=max
