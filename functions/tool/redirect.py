@@ -41,11 +41,7 @@ class ReplaceCog(commands.Cog):
         if 'http://' not in message.content and 'https://' not in message.content:
             return
         if (fixed := self.replace_text(message.content)) != message.content:
-            await message.channel.send(f"{message.author.mention} sent:\n{fixed}")
-            try:
-                await message.delete()
-            except Exception:
-                pass
+            await message.channel.send(fixed)
 
 
 async def setup(bot: "UiPy"):
