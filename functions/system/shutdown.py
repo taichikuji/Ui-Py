@@ -16,6 +16,7 @@ class CloseCog(commands.Cog):
     )
     @app_commands.checks.has_permissions(administrator=True)
     async def shutdown_bot(self, interaction: Interaction):
+        assert interaction.client.user is not None, "interaction.client.user is None in shutdown_bot!"
         await interaction.response.send_message(
             f":wave: Shutting down {interaction.client.user.name}...",
             ephemeral=True

@@ -38,6 +38,7 @@ class UiPy(commands.AutoShardedBot):
                 print(f"[ERROR] Unexpected exception! [{module}]")
 
     async def on_ready(self):
+        assert self.user is not None, "self.user is None in on_ready!"
         display = Activity(
             name="Ping me, or use Slash Commands!", type=ActivityType.listening
         )
@@ -46,16 +47,17 @@ class UiPy(commands.AutoShardedBot):
 
     async def close(self):
         try:
-            await self.session.close()
+            if self.session is not None:
+                await self.session.close()
             await super().close()
             print("[INFO] Session closed!")
         except Exception as e:
             print(f"[ERROR] Failed to close aiohttp session - {e}")
             raise
 
-    def run(self, **kwargs):
+    def run(self, *args, **kwargs):
         try:
-            super().run(self._bot_token, reconnect=True, **kwargs)
+            super().run(str(self._bot_token), reconnect=True, *args, **kwargs)
         except TypeError:
             print("[ERROR] An unexpected keyword argument was passed!")
         except Exception as e:

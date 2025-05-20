@@ -24,7 +24,7 @@ class HelpCog(commands.Cog):
             for cmd in self.bot.tree.get_commands():
                 embed.add_field(
                     name=cmd.name,
-                    value=cmd.description or "No description",
+                    value=getattr(cmd, "description", "No description"),
                     inline=False,
                 )
             await interaction.response.send_message(embed=embed)
@@ -33,7 +33,7 @@ class HelpCog(commands.Cog):
             if command:
                 embed = Embed(
                     title=f"Help: {command.name}",
-                    description=command.description or "No description",
+                    description=getattr(command, "description", "No description"),
                     color=self.bot.color,
                 )
                 await interaction.response.send_message(embed=embed, ephemeral=True)
