@@ -29,8 +29,7 @@ class HelpCog(commands.Cog):
                 )
             await interaction.response.send_message(embed=embed)
         else:
-            command = self.bot.tree.get_command(command_name)
-            if command:
+            if command := self.bot.tree.get_command(command_name):
                 embed = Embed(
                     title=f"Help: {command.name}",
                     description=getattr(command, "description", "No description"),

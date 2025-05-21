@@ -21,8 +21,7 @@ class ClearCog(commands.Cog):
         def check_message(message):
             return user is None or message.author == user
         
-        channel = interaction.channel
-        if isinstance(channel, (TextChannel, Thread)):
+        if isinstance(channel := interaction.channel, (TextChannel, Thread)):
             deleted = await channel.purge(limit=amount, check=check_message)
             if user:
                 msg = f":wastebasket: Deleted {len(deleted)} messages from {user.display_name}."

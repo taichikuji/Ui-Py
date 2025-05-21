@@ -4,8 +4,7 @@ from discord import Intents, Activity, ActivityType
 from discord.ext import commands
 from aiohttp import ClientSession
 
-TOKEN = environ.get("TOKEN")
-if TOKEN is None:
+if (TOKEN := environ.get("TOKEN")) is None:
     raise EnvironmentError("[ERROR] TOKEN environment variable not set")
 
 

@@ -1,5 +1,5 @@
-from typing import Optional, TYPE_CHECKING
-from discord import app_commands, Object, HTTPException, Forbidden, Guild
+from typing import TYPE_CHECKING
+from discord import HTTPException, Forbidden, Guild
 from discord.ext import commands
 
 if TYPE_CHECKING:
@@ -36,19 +36,19 @@ class SyncCog(commands.Cog):
                 msg = f"Synced {len(synced_commands)} commands globally."
             else:
                 msg = "No commands were synced globally."
-            if is_slash:
+            if is_slash and ctx.interaction:
                 await ctx.interaction.followup.send(msg, ephemeral=True)
             else:
                 await ctx.send(msg)
         except HTTPException as e:
             msg = f"Failed to sync globally: {e.status} {getattr(e, 'text', 'No additional information')}"
-            if is_slash:
+            if is_slash and ctx.interaction:
                 await ctx.interaction.followup.send(msg, ephemeral=True)
             else:
                 await ctx.send(msg)
         except Exception as e:
             msg = f"An unexpected error occurred during global sync: {e}"
-            if is_slash:
+            if is_slash and ctx.interaction:
                 await ctx.interaction.followup.send(msg, ephemeral=True)
             else:
                 await ctx.send(msg)
@@ -65,7 +65,7 @@ class SyncCog(commands.Cog):
 
         if not ctx.guild:
             err_msg = "This command can only be used in a server."
-            if is_slash:
+            if is_slash and ctx.interaction:
                 await ctx.interaction.followup.send(err_msg, ephemeral=True)
             else:
                 await ctx.send(err_msg)
@@ -74,18 +74,17 @@ class SyncCog(commands.Cog):
         target_guild_object: Guild = ctx.guild
 
         try:
-            self.bot.tree.clear_commands(guild=target_guild_object)
-            if synced_commands := await self.bot.tree.sync(guild=target_guild_object):
-                msg = f"Synced {len(synced_commands)} commands to guild {target_guild_object.id}."
+            if synced_commands_list := await self.bot.tree.sync(guild=target_guild_object):
+                msg = f"Synced {len(synced_commands_list)} commands to guild {target_guild_object.id}"
             else:
-                msg = f"No commands to sync to guild {target_guild_object.id}."
-            if is_slash:
+                msg = f"No application commands were synced to guild {target_guild_object.id}. This may mean the bot has no global commands registered in its tree."
+            if is_slash and ctx.interaction:
                 await ctx.interaction.followup.send(msg, ephemeral=True)
             else:
                 await ctx.send(msg)
         except Forbidden as e:
             msg = f"Failed to sync to guild {target_guild_object.id}: Missing Permissions. {e}"
-            if is_slash:
+            if is_slash and ctx.interaction:
                 await ctx.interaction.followup.send(msg, ephemeral=True)
             else:
                 await ctx.send(msg)
@@ -93,13 +92,13 @@ class SyncCog(commands.Cog):
             msg = (
                 f"Failed to sync to guild {target_guild_object.id}: {e.status} {e.text}"
             )
-            if is_slash:
+            if is_slash and ctx.interaction:
                 await ctx.interaction.followup.send(msg, ephemeral=True)
             else:
                 await ctx.send(msg)
         except Exception as e:
             msg = f"An unexpected error occurred during guild sync for guild {target_guild_object.id}: {e}"
-            if is_slash:
+            if is_slash and ctx.interaction:
                 await ctx.interaction.followup.send(msg, ephemeral=True)
             else:
                 await ctx.send(msg)
