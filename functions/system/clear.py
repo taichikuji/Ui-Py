@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 
 
 class ClearCog(commands.Cog):
+    """Cog for bulk message removal in text channels."""
     def __init__(self, bot: "UiPy"):
         self.bot = bot
 
@@ -15,7 +16,8 @@ class ClearCog(commands.Cog):
             description="Remove messages in bulk. Defaults to 1 message."
             )
     @app_commands.checks.has_permissions(manage_messages=True)
-    async def clear(self, interaction: Interaction, amount: int = 1, user: Optional[Member] = None):
+    async def clear(self, interaction: Interaction, amount: int = 1, user: Optional[Member] = None) -> None:
+        """Bulk delete messages, optionally filtering by user."""
         await interaction.response.defer(ephemeral=True)
         
         def check_message(message):
@@ -35,7 +37,8 @@ class ClearCog(commands.Cog):
             return
 
     @clear.error
-    async def clear_error(self, interaction: Interaction, error: app_commands.AppCommandError):
+    async def clear_error(self, interaction: Interaction, error: app_commands.AppCommandError) -> None:
+        """Handle errors for the clear command."""
         if isinstance(error, app_commands.MissingPermissions):
             await interaction.response.send_message(
                 f":x: You don't have permission to use this command, {interaction.user.mention}.",
@@ -46,4 +49,5 @@ class ClearCog(commands.Cog):
 
 
 async def setup(bot: "UiPy"):
+    """Add the ClearCog to the bot."""
     await bot.add_cog(ClearCog(bot))

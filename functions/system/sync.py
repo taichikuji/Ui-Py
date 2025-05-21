@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 
 
 class SyncCog(commands.Cog):
+    """Cog for syncing application commands globally or per guild (owner only)."""
     def __init__(self, bot: "UiPy"):
         self.bot = bot
 
@@ -15,7 +16,8 @@ class SyncCog(commands.Cog):
         description="Sync application commands (Owner Only)",
     )
     @commands.is_owner()
-    async def sync(self, ctx: commands.Context):
+    async def sync(self, ctx: commands.Context) -> None:
+        """Base sync command group."""
         if ctx.invoked_subcommand is None:
             await ctx.send(
                 "Please specify a subcommand: `global` or `guild`.\n"
@@ -27,7 +29,8 @@ class SyncCog(commands.Cog):
         description="Sync commands globally (can take up to an hour)."
     )
     @commands.is_owner()
-    async def sync_global(self, ctx: commands.Context):
+    async def sync_global(self, ctx: commands.Context) -> None:
+        """Sync commands globally."""
         is_slash = ctx.interaction is not None
         if is_slash:
             await ctx.defer(ephemeral=True)
@@ -58,11 +61,11 @@ class SyncCog(commands.Cog):
         description="Sync commands to the current guild (usually instant)."
     )
     @commands.is_owner()
-    async def sync_guild(self, ctx: commands.Context):
+    async def sync_guild(self, ctx: commands.Context) -> None:
+        """Sync commands to the current guild."""
         is_slash = ctx.interaction is not None
         if is_slash:
             await ctx.defer(ephemeral=True)
-
         if not ctx.guild:
             err_msg = "This command can only be used in a server."
             if is_slash and ctx.interaction:
@@ -70,9 +73,7 @@ class SyncCog(commands.Cog):
             else:
                 await ctx.send(err_msg)
             return
-
         target_guild_object: Guild = ctx.guild
-
         try:
             if synced_commands_list := await self.bot.tree.sync(guild=target_guild_object):
                 msg = f"Synced {len(synced_commands_list)} commands to guild {target_guild_object.id}"
@@ -105,4 +106,5 @@ class SyncCog(commands.Cog):
 
 
 async def setup(bot: "UiPy"):
+    """Add the SyncCog to the bot."""
     await bot.add_cog(SyncCog(bot))

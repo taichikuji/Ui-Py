@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 
 
 class PingCog(commands.Cog):
+    """Cog for checking bot latency."""
     def __init__(self, bot: "UiPy"):
         self.bot = bot
 
@@ -14,7 +15,8 @@ class PingCog(commands.Cog):
         name="ping",
         description="Check the bot's latency."
     )
-    async def ping(self, interaction: Interaction):
+    async def ping(self, interaction: Interaction) -> None:
+        """Respond with the bot's latency in milliseconds."""
         latency = int(self.bot.latency * 1000)
         await interaction.response.send_message(
             f":ping_pong: Pong! Latency: {latency}ms"
@@ -22,4 +24,5 @@ class PingCog(commands.Cog):
 
 
 async def setup(bot: "UiPy"):
+    """Add the PingCog to the bot."""
     await bot.add_cog(PingCog(bot))

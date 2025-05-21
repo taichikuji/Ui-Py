@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 
 
 class MusicCog(commands.Cog):
+    """Cog for music playback and queue management in voice channels."""
     def __init__(self, bot: "UiPy"):
         self.bot = bot
         self.voice_clients: Dict[int, VoiceClient] = {}
@@ -76,7 +77,6 @@ class MusicCog(commands.Cog):
                 await interaction.followup.send(f":x: Failed to retrieve video. Error: {e}", ephemeral=True)
                 return
 
-        # Ensure channel is a TextChannel
         channel = interaction.channel
         from discord import TextChannel
         if not isinstance(channel, TextChannel):

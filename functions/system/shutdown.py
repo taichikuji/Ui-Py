@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 
 
 class CloseCog(commands.Cog):
+    """Cog for shutting down the bot gracefully."""
     def __init__(self, bot: "UiPy"):
         self.bot = bot
 
@@ -15,7 +16,8 @@ class CloseCog(commands.Cog):
         description="Shuts down the bot gracefully."
     )
     @app_commands.checks.has_permissions(administrator=True)
-    async def shutdown_bot(self, interaction: Interaction):
+    async def shutdown_bot(self, interaction: Interaction) -> None:
+        """Shutdown command for administrators."""
         assert interaction.client.user is not None, "interaction.client.user is None in shutdown_bot!"
         await interaction.response.send_message(
             f":wave: Shutting down {interaction.client.user.name}...",
@@ -27,7 +29,8 @@ class CloseCog(commands.Cog):
             print(f"[ERROR] Failed to shut down the bot: {e}")
 
     @shutdown_bot.error
-    async def on_shutdown_error(self, interaction: Interaction, error: app_commands.AppCommandError):
+    async def on_shutdown_error(self, interaction: Interaction, error: app_commands.AppCommandError) -> None:
+        """Handle errors for the shutdown command."""
         if isinstance(error, app_commands.errors.MissingPermissions):
             await interaction.response.send_message(
                 ":x: You need Administrator permissions to shut down the bot.",
@@ -38,4 +41,5 @@ class CloseCog(commands.Cog):
 
 
 async def setup(bot: "UiPy"):
+    """Add the CloseCog to the bot."""
     await bot.add_cog(CloseCog(bot))

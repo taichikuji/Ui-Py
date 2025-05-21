@@ -8,6 +8,7 @@ if TYPE_CHECKING:
 
 
 class LoaderCog(commands.Cog):
+    """Cog for loading, unloading, and reloading extensions."""
     def __init__(self, bot: "UiPy"):
         self.bot = bot
 
@@ -16,7 +17,8 @@ class LoaderCog(commands.Cog):
         description="Load an extension."
     )
     @app_commands.checks.has_permissions(administrator=True)
-    async def load(self, interaction: Interaction, extension: str):
+    async def load(self, interaction: Interaction, extension: str) -> None:
+        """Load a bot extension."""
         try:
             await self.bot.load_extension(f"functions.{extension}")
             print(
@@ -38,7 +40,6 @@ class LoaderCog(commands.Cog):
         except Exception as e:
             description = f":x: An unexpected error occurred: {e}"
             print(f"[ERROR] {description}")
-
         await interaction.response.send_message(description, ephemeral=True)
 
     @app_commands.command(
@@ -46,7 +47,8 @@ class LoaderCog(commands.Cog):
         description="Unload an extension."
     )
     @app_commands.checks.has_permissions(administrator=True)
-    async def unload(self, interaction: Interaction, extension: str):
+    async def unload(self, interaction: Interaction, extension: str) -> None:
+        """Unload a bot extension."""
         try:
             await self.bot.unload_extension(f"functions.{extension}")
             description = (
@@ -57,7 +59,6 @@ class LoaderCog(commands.Cog):
         except Exception as e:
             description = f":x: An unexpected error occurred: {e}"
             print(f"[ERROR] {description}")
-
         await interaction.response.send_message(description, ephemeral=True)
 
     @app_commands.command(
@@ -65,7 +66,8 @@ class LoaderCog(commands.Cog):
         description="Reload an extension."
     )
     @app_commands.checks.has_permissions(administrator=True)
-    async def reload(self, interaction: Interaction, extension: str):
+    async def reload(self, interaction: Interaction, extension: str) -> None:
+        """Reload a bot extension."""
         try:
             await self.bot.reload_extension(f"functions.{extension}")
             print(
@@ -87,9 +89,9 @@ class LoaderCog(commands.Cog):
         except Exception as e:
             description = f":x: An unexpected error occurred: {e}"
             print(f"[ERROR] {description}")
-
         await interaction.response.send_message(description, ephemeral=True)
 
 
 async def setup(bot: "UiPy"):
+    """Add the LoaderCog to the bot."""
     await bot.add_cog(LoaderCog(bot))

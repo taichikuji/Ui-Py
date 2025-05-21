@@ -8,6 +8,7 @@ if TYPE_CHECKING:
 
 
 class ReplaceCog(commands.Cog):
+    """Cog for replacing social media links with alternative frontends."""
     def __init__(self, bot: "UiPy"):
         self.bot = bot
         self.patterns: List[Tuple[Pattern[str], str]] = [
