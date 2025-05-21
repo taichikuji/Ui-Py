@@ -1,5 +1,5 @@
 from typing import Optional, TYPE_CHECKING
-from discord import app_commands, Object, HTTPException, Forbidden
+from discord import app_commands, Object, HTTPException, Forbidden, Guild
 from discord.ext import commands
 
 if TYPE_CHECKING:
@@ -18,9 +18,8 @@ class SyncCog(commands.Cog):
     async def sync(self, ctx: commands.Context):
         if ctx.invoked_subcommand is None:
             await ctx.send(
-                "Please specify a subcommand: `global` or `guild [id]`.\n"
-                "(e.g., `/sync guild` or `@BotName sync global`)",
-                ephemeral=True,
+                "Please specify a subcommand: `global` or `guild`.\n"
+                "(e.g., `/sync guild` or `@BotName sync global`)"
             )
 
     @sync.command(
@@ -47,7 +46,7 @@ class SyncCog(commands.Cog):
                 await ctx.interaction.followup.send(msg, ephemeral=True)
             else:
                 await ctx.send(msg)
-        except Exception:
+        except Exception as e:
             msg = f"An unexpected error occurred during global sync: {e}"
             if is_slash:
                 await ctx.interaction.followup.send(msg, ephemeral=True)
@@ -56,40 +55,23 @@ class SyncCog(commands.Cog):
 
     @sync.command(
         name="guild", 
-        description="Sync commands to a specific guild (usually instant)."
-    )
-    @app_commands.describe(
-        guild_id="Optional: Guild ID to sync to (defaults to current guild, or dev guild if configured)"
+        description="Sync commands to the current guild (usually instant)."
     )
     @commands.is_owner()
-    async def sync_guild(self, ctx: commands.Context, guild_id: Optional[str] = None):
+    async def sync_guild(self, ctx: commands.Context):
         is_slash = ctx.interaction is not None
         if is_slash:
             await ctx.defer(ephemeral=True)
 
-        target_guild_object: Optional[Object] = None
-
-        if guild_id:
-            try:
-                target_guild_object = Object(id=int(guild_id))
-            except ValueError:
-                err_msg = "Invalid Guild ID format. Please provide a numerical ID."
-                if is_slash:
-                    await ctx.interaction.followup.send(err_msg, ephemeral=True)
-                else:
-                    await ctx.send(err_msg)
-                return
-        elif ctx.guild:
-            target_guild_object = ctx.guild
-        elif self.bot.dev_guild:
-            target_guild_object = self.bot.dev_guild
-        else:
-            err_msg = "Cannot determine target guild. Please specify a Guild ID or run this command in a server."
+        if not ctx.guild:
+            err_msg = "This command can only be used in a server."
             if is_slash:
                 await ctx.interaction.followup.send(err_msg, ephemeral=True)
             else:
                 await ctx.send(err_msg)
             return
+
+        target_guild_object: Guild = ctx.guild
 
         try:
             self.bot.tree.clear_commands(guild=target_guild_object)
@@ -115,7 +97,7 @@ class SyncCog(commands.Cog):
                 await ctx.interaction.followup.send(msg, ephemeral=True)
             else:
                 await ctx.send(msg)
-        except Exception:
+        except Exception as e:
             msg = f"An unexpected error occurred during guild sync for guild {target_guild_object.id}: {e}"
             if is_slash:
                 await ctx.interaction.followup.send(msg, ephemeral=True)
