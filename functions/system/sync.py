@@ -78,7 +78,7 @@ class SyncCog(commands.Cog):
             if synced_commands_list := await self.bot.tree.sync(guild=target_guild_object):
                 msg = f"Synced {len(synced_commands_list)} commands to guild {target_guild_object.id}"
             else:
-                msg = f"No application commands were synced to guild {target_guild_object.id}. This may mean the bot has no global commands registered in its tree."
+                msg = f"No application commands were synced to guild {target_guild_object.id}"
             if is_slash and ctx.interaction:
                 await ctx.interaction.followup.send(msg, ephemeral=True)
             else:
