@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Optional, Dict
-from re import match, fullmatch
+from re import match, fullmatch, IGNORECASE
 from os import environ
+import aiosqlite
 from discord import Interaction, app_commands, Embed
 from discord.ext import commands
 
@@ -15,12 +16,39 @@ except Exception as e:
     STEAM_API_KEY = None
 
 class SteamCog(commands.Cog):
-    """Cog for music playback and queue management in voice channels."""
+    """Cog for Steam integration, linking accounts and fetching lobby information."""
     def __init__(self, bot: "UiPy"):
         self.bot = bot
-        # Stores discord_user_id -> steam_id_64
-        self.user_steam_links: Dict[int, str] = {}
         self.steam_api_base = "https://api.steampowered.com"
+        self.db_path = "steam_links.sqlite"
+
+    async def cog_load(self):
+        await self._init_db()
+
+    async def _init_db(self):
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS steam_links (
+                    discord_id INTEGER PRIMARY KEY,
+                    steam_id TEXT NOT NULL
+                )
+            """)
+            await db.commit()
+
+    async def _save_steam_link(self, discord_id: int, steam_id: str):
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                "INSERT OR REPLACE INTO steam_links (discord_id, steam_id) VALUES (?, ?)",
+                (discord_id, steam_id)
+            )
+            await db.commit()
+
+    async def _get_steam_link(self, discord_id: int) -> Optional[str]:
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("SELECT steam_id FROM steam_links WHERE discord_id = ?", (discord_id,)) as cursor:
+                if row := await cursor.fetchone():
+                    return row[0]
+                return None
 
     async def _resolve_steam_id(self, vanity_url_or_id: str) -> Optional[str]:
         if not self.bot.session:
@@ -32,18 +60,16 @@ class SteamCog(commands.Cog):
         
         vanity_name = vanity_url_or_id
         # regex to extract vanity name from Steam URL
-        profile_match = match(r"(?:https?://)?steamcommunity\.com/(?:id/([^/]+)|profiles/(\d{17}))/?", vanity_url_or_id, re.IGNORECASE)
-
-        if profile_match:
+        if profile_match := match(r"(?:https?://)?steamcommunity\\.com/(?:id/([^/]+)|profiles/(\\d{17}))/?", vanity_url_or_id, IGNORECASE):
             # matches id url
-            if profile_match.group(1):
-                vanity_name = profile_match.group(1)
+            if id_part := profile_match.group(1):
+                vanity_name = id_part
             # matches profiles url
-            elif profile_match.group(2):
-                return profile_match.group(2)
+            elif profiles_part := profile_match.group(2):
+                return profiles_part
             
         # confirm if input is indeed SteamID64 after extraction
-        if fullmatch(r"\d{17}", vanity_name):
+        if fullmatch(r"\\d{17}", vanity_name):
             return vanity_name
         
         try:
@@ -54,8 +80,7 @@ class SteamCog(commands.Cog):
             ) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    response = data.get("response", {})
-                    if response.get("success") == 1:
+                    if (response := data.get("response", {})) and response.get("success") == 1:
                         return response.get("steamid")
                     else:
                         print(f"[INFO] SteamCog: Could not resolve vanity '{vanity_name}'. Message: {response.get('message', 'No message')}")
@@ -68,7 +93,7 @@ class SteamCog(commands.Cog):
             return None
         
         # Default return if no resolution
-        return 
+        return None
 
     @app_commands.command( name="link", description="Link your Discord account to a Steam ID or vanity URL." )
     async def link_steam(self, interaction: Interaction, steam_identifier: str):
@@ -89,13 +114,13 @@ class SteamCog(commands.Cog):
 
         if not steam_id:
             await interaction.followup.send(
-                f":x: Could not resolve '{steam_identifier}' to a valid SteamID64. \\n"
+                f":x: Could not resolve '{steam_identifier}' to a valid SteamID64. \\\\n"
                 "You can use https://www.steamidfinder.com/ to find your SteamID64 or vanity URL."
                 "or you can search on Google 'find steamID64 from Vanity URL' for more information"
             )
             return
         
-        self.user_steam_links[interaction.user.id] = steam_id
+        await self._save_steam_link(interaction.user.id, steam_id)
         await interaction.followup.send(
             f":white_check_mark: Your Discord account has been successfully linked to SteamID: `{steam_id}`."
         )
@@ -118,9 +143,7 @@ class SteamCog(commands.Cog):
                 )
                 return
         
-        linked_steam_id = self.user_steam_links.get(interaction.user.id)
-
-        if not linked_steam_id:
+        if not (linked_steam_id := await self._get_steam_link(interaction.user.id)):
             await interaction.followup.send(
                 ":information_source: Your Steam account is not linked. "
                 "Please use the `/link <your_steam_id_or_vanity_name>` command first."
@@ -140,23 +163,25 @@ class SteamCog(commands.Cog):
                     )
                     return
                 data = await resp.json()
-            players = data.get("response", {}).get("players", [])
-            if not players:
+            
+            if not (players := data.get("response", {}).get("players", [])):
                 await interaction.followup.send(
                     ":x: Could not retrieve your player summary from Steam. "
                     "Ensure your Steam profile is public and you've linked the correct ID."
                 )
                 return
-            app_id = players[0].get("gameid")
-            lobby_id = players[0].get("lobbysteamid")
-            game_name = players[0].get("gameextrainfo", "Unknown Game")
+            
+            player_info = players[0]
+            game_name = player_info.get("gameextrainfo", "Unknown Game")
 
-            if not app_id:
+            if not (app_id := player_info.get("gameid")):
                 await interaction.followup.send(
                     ":x: You are not currently in a joinable game. "
                     "Please start a game and try again."
                 )
                 return
+            
+            lobby_id = player_info.get("lobbysteamid")
             if not lobby_id or lobby_id == "0":
                 await interaction.followup.send(
                     f":information_source: You are currently playing **{game_name}** (AppID: `{app_id}`), "
@@ -164,7 +189,6 @@ class SteamCog(commands.Cog):
                 )
                 return
             
-            # build Vanity invite URL
             lobby_url = f"https://taichikuji.github.io/redirector/?url=steam://joinlobby/{app_id}/{lobby_id}/{linked_steam_id}"
 
             embed = Embed(
@@ -174,7 +198,8 @@ class SteamCog(commands.Cog):
             )
             embed.add_field(name="Lobby Link", value=f"`{lobby_url}`", inline=False)
             embed.set_footer(text="Clicking this link requires Steam to be installed and running.")
-            embed.set_thumbnail(url=interaction.user.display_avatar.url)
+            if interaction.user.display_avatar:
+                embed.set_thumbnail(url=interaction.user.display_avatar.url)
             
             await interaction.followup.send(embed=embed)
 
@@ -183,8 +208,8 @@ class SteamCog(commands.Cog):
             await interaction.followup.send(
                 ":x: An unexpected error occurred while trying to fetch your lobby information."
             )
+
 async def setup(bot: "UiPy"):
     if not STEAM_API_KEY:
-        print("[ERROR] SteamCog: STEAM_API_KEY environment variable is not set.")
-        return
+        raise commands.ExtensionFailed(name="functions.tool.steam", original=RuntimeError("STEAM_API_KEY environment variable is not set."))
     await bot.add_cog(SteamCog(bot))
