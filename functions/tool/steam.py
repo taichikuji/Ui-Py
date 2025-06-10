@@ -1,32 +1,34 @@
 from typing import TYPE_CHECKING, Optional, Dict
 from re import match, fullmatch, IGNORECASE
-from os import environ
-import aiosqlite
+from os import environ, makedirs, path
+from aiosqlite import connect
 from discord import Interaction, app_commands, Embed
 from discord.ext import commands
+import traceback
 
 if TYPE_CHECKING:
     from main import UiPy
 
 try:
     # Attempt to get Steam API Key from environment variables
-    STEAM_API_KEY = environ.get("STEAM_API_KEY")
+    STEAM_TOKEN = environ.get("STEAM_TOKEN")
 except Exception as e:
-    print(f"[ERROR] SteamCog: Failed to load STEAM_API_KEY from environment. {e}")
-    STEAM_API_KEY = None
+    print(f"[ERROR] SteamCog: Failed to load STEAM_TOKEN from environment. {e}")
+    STEAM_TOKEN = None
 
 class SteamCog(commands.Cog):
     """Cog for Steam integration, linking accounts and fetching lobby information."""
     def __init__(self, bot: "UiPy"):
         self.bot = bot
         self.steam_api_base = "https://api.steampowered.com"
-        self.db_path = "steam_links.sqlite"
+        self.db_path = "data/steam_links.sqlite"
 
     async def cog_load(self):
         await self._init_db()
 
     async def _init_db(self):
-        async with aiosqlite.connect(self.db_path) as db:
+        makedirs(path.dirname(self.db_path), exist_ok=True)
+        async with connect(self.db_path) as db:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS steam_links (
                     discord_id INTEGER PRIMARY KEY,
@@ -36,7 +38,7 @@ class SteamCog(commands.Cog):
             await db.commit()
 
     async def _save_steam_link(self, discord_id: int, steam_id: str):
-        async with aiosqlite.connect(self.db_path) as db:
+        async with connect(self.db_path) as db:
             await db.execute(
                 "INSERT OR REPLACE INTO steam_links (discord_id, steam_id) VALUES (?, ?)",
                 (discord_id, steam_id)
@@ -44,7 +46,7 @@ class SteamCog(commands.Cog):
             await db.commit()
 
     async def _get_steam_link(self, discord_id: int) -> Optional[str]:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with connect(self.db_path) as db:
             async with db.execute("SELECT steam_id FROM steam_links WHERE discord_id = ?", (discord_id,)) as cursor:
                 if row := await cursor.fetchone():
                     return row[0]
@@ -54,8 +56,8 @@ class SteamCog(commands.Cog):
         if not self.bot.session:
             print("[ERROR] SteamCog: Bot aiohttp session is not initialized.")
             return None
-        if not STEAM_API_KEY:
-            print("[ERROR] SteamCog: STEAM_API_KEY is not set. Cannot resolve Steam ID.")
+        if not STEAM_TOKEN:
+            print("[ERROR] SteamCog: STEAM_TOKEN is not set. Cannot resolve Steam ID.")
             return None
         
         vanity_name = vanity_url_or_id
@@ -76,7 +78,7 @@ class SteamCog(commands.Cog):
             # API call to resolve vanity URL to SteamID64
             async with self.bot.session.get(
                 f"{self.steam_api_base}/ISteamUser/ResolveVanityURL/v1/",
-                params={"key": STEAM_API_KEY, "vanityurl": vanity_name, "url_type": "1"} # url_type 1 for individual profile
+                params={"key": STEAM_TOKEN, "vanityurl": vanity_name, "url_type": "1"} # url_type 1 for individual profile
             ) as resp:
                 if resp.status == 200:
                     data = await resp.json()
@@ -99,7 +101,7 @@ class SteamCog(commands.Cog):
     async def link_steam(self, interaction: Interaction, steam_identifier: str):
         await interaction.response.defer(ephemeral=True)
         
-        if not STEAM_API_KEY:
+        if not STEAM_TOKEN:
             await interaction.followup.send(
                 ":x: The bot's Steam API key is not configured. Linking is currently unavailable. Please contact the bot owner."
             )
@@ -132,7 +134,7 @@ class SteamCog(commands.Cog):
     async def get_lobby(self, interaction: Interaction):
         await interaction.response.defer()
 
-        if not STEAM_API_KEY:
+        if not STEAM_TOKEN:
                 await interaction.followup.send(
                     ":x: The bot's Steam API key is not configured. Lobby fetching is unavailable. Please contact the bot owner."
                 )
@@ -153,7 +155,7 @@ class SteamCog(commands.Cog):
         try:
             async with self.bot.session.get(
                 f"{self.steam_api_base}/ISteamUser/GetPlayerSummaries/v2/",
-                params={"key": STEAM_API_KEY, "steamids": linked_steam_id}
+                params={"key": STEAM_TOKEN, "steamids": linked_steam_id}
             ) as resp:
                 if resp.status != 200:
                     print(f"[ERROR] SteamCog: Steam API error (GetPlayerSummaries) - Status {resp.status}, Response: {await resp.text()}")
@@ -210,6 +212,6 @@ class SteamCog(commands.Cog):
             )
 
 async def setup(bot: "UiPy"):
-    if not STEAM_API_KEY:
-        raise commands.ExtensionFailed(name="functions.tool.steam", original=RuntimeError("STEAM_API_KEY environment variable is not set."))
+    if not STEAM_TOKEN:
+        raise commands.ExtensionFailed(name="functions.tool.steam", original=RuntimeError("STEAM_TOKEN environment variable is not set."))
     await bot.add_cog(SteamCog(bot))
