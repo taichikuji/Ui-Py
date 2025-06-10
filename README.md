@@ -38,6 +38,9 @@ To deploy, you have the following options:
     ```bash
     docker run -e TOKEN="TOKEN" ui:latest
     ```
+
+> **Note**: If you plan on also using a Cog / Module that requires an additional API Token, check the wiki's specific entry for additional token requirements here: [Setting environment variables](https://github.com/taichikuji/Ui-Py/wiki/Configuration-Guide#setting-environment-variables)
+
 ### 3. **Using ghcr.io**
 
 You can now deploy using GitHub Packages without building the Dockerfile yourself!

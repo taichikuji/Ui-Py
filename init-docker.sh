@@ -2,7 +2,7 @@
 
 # This script automates the process of cleaning up Docker containers, pulling the latest code from the default branch of a Git repository, and rebuilding and restarting the Docker environment.
 # It includes the following features:
-# - A "--purge" flag to perform a complete cleanup of Docker resources, including images, volumes, and orphaned containers.
+# - A "--prune" flag to perform a complete cleanup of Docker resources, including images, volumes, and orphaned containers.
 # - A "--reset" flag to perform the git reset operation separately.
 # - Automatic detection of the default branch of the Git repository.
 # - Logging of success and error messages for each operation.
@@ -10,7 +10,7 @@
 
 # Usage:
 # - Run the script without arguments to update and restart the Docker environment.
-# - Use the "--purge" flag to perform a full cleanup before updating and restarting.
+# - Use the "--prune" flag to perform a full cleanup before updating and restarting.
 # - Use the "--reset" flag to reset the repository without affecting the Docker environment.
 
 SUCCESS='\e[39m\e[42m[SUCCESS]\e[49m \e[32m'
@@ -21,7 +21,7 @@ log() {
     echo -e "$1 $2"
 }
 
-purge() {
+prune() {
     log "$SUCCESS" "Starting cleanup..."
     if docker-compose down --rmi local --volumes --remove-orphans; then
         log "$SUCCESS" "Docker cleanup successful"
@@ -41,9 +41,9 @@ reset_git() {
     fi
 }
 
-# Check for --purge flag
-if [[ "$1" == "--purge" ]]; then
-    purge
+# Check for --prune flag
+if [[ "$1" == "--prune" ]]; then
+    prune
     exit 0
 fi
 

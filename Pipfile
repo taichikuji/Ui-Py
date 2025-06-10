@@ -18,6 +18,7 @@ aiohttp = "*"
 psutil = "*"
 yt-dlp = "*"
 pynacl = "*"
+aiosqlite = "*"
 
 [requires]
 python_version = "3.12"
