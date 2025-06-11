@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, List, Tuple, Optional
+from typing import TYPE_CHECKING, Dict, List, Tuple
 from asyncio import get_running_loop, run_coroutine_threadsafe
 from discord.ext import commands
 from discord import FFmpegPCMAudio, Interaction, app_commands, VoiceClient, TextChannel, Member
@@ -78,7 +78,6 @@ class MusicCog(commands.Cog):
                 return
 
         channel = interaction.channel
-        from discord import TextChannel
         if not isinstance(channel, TextChannel):
             await interaction.followup.send(":x: This command must be used in a text channel.", ephemeral=True)
             return
@@ -89,13 +88,13 @@ class MusicCog(commands.Cog):
             self.queues[guild_id] = []
 
         if not vc.is_playing() and not vc.is_paused() and not self.queues[guild_id]:
-            self._play_song(guild_id, url, title)
+            self._play_song(guild_id, url)
             await interaction.followup.send(f":notes: Now playing: **{title}**")
         else:
             self.queues[guild_id].append((url, title))
             await interaction.followup.send(f":ballot_box_with_check: Added to queue: **{title}**")
 
-    def _play_song(self, guild_id: int, url: str, title: str):
+    def _play_song(self, guild_id: int, url: str):
         vc: VoiceClient = self.voice_clients[guild_id]
         vc.play(
             FFmpegPCMAudio(url, before_options=self.ffmpeg_opts["before_options"], options=self.ffmpeg_opts["options"]),
@@ -123,7 +122,7 @@ class MusicCog(commands.Cog):
         
         if guild_id in self.queues and self.queues[guild_id]:
             url, title = self.queues[guild_id].pop(0)
-            self._play_song(guild_id, url, title)
+            self._play_song(guild_id, url)
             if guild_id in self.command_channels and (channel := self.command_channels[guild_id]):
                 coro = channel.send(f":notes: Now playing: **{title}**")
                 future = run_coroutine_threadsafe(coro, self.bot.loop)
@@ -190,7 +189,7 @@ class MusicCog(commands.Cog):
 
     @app_commands.command(
         name="queue",
-        description="Show the current music queue."
+        description="Show the current music queue. Displays up to 10 items and indicates if there are more."
     )
     async def queue(self, interaction: Interaction):
         guild_id = interaction.guild_id
@@ -198,14 +197,16 @@ class MusicCog(commands.Cog):
             await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
             return
         if guild_id not in self.queues or not self.queues[guild_id]:
-            await interaction.response.send_message(":x: The queue is empty.")
+            await interaction.response.send_message(":x: The music queue is currently empty.")
         else:
             queue_list = "\n".join(
                 [
                     f"{i+1}. {title}"
-                    for i, (_, title) in enumerate(self.queues[guild_id])
+                    for i, (_, title) in enumerate(self.queues[guild_id][:10])
                 ]
             )
+            if len(self.queues[guild_id]) > 10:
+                queue_list += f"\n...and {len(self.queues[guild_id]) - 10} more."
             await interaction.response.send_message(f":musical_note: **Current Queue:**\n{queue_list}")
 
     @app_commands.command(
