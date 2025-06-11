@@ -31,7 +31,7 @@ class InfoCog(commands.Cog):
             "fields": [
                 {
                     "name": "Bot version",
-                    "value": f"**Python**: {python_version()}\n**Ui-Py**: 0.2.0",
+                    "value": f"**Python**: {python_version()}\n**Ui-Py**: v2.1.0",
                     "inline": True,
                 },
                 {"name": "OS", "value": f"**{system()}**: {machine()}", "inline": True},
