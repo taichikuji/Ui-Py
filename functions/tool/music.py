@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Dict, List, Tuple
 from asyncio import get_running_loop, run_coroutine_threadsafe
+from gc import collect
 from discord.ext import commands
 from discord import FFmpegPCMAudio, Interaction, app_commands, VoiceClient, TextChannel, Member, Embed
 from yt_dlp import YoutubeDL
@@ -102,22 +103,28 @@ class MusicCog(commands.Cog):
         )
 
     async def _disconnect_and_cleanup(self, guild_id: int):
-        if guild_id in self.voice_clients:
-            vc: VoiceClient = self.voice_clients[guild_id]
+        vc: VoiceClient | None = self.voice_clients.pop(guild_id, None)
+        if vc:
             if vc.is_connected():
-                await vc.disconnect()
-                
-            del self.voice_clients[guild_id]
-            if guild_id in self.queues:
-                self.queues[guild_id].clear()
-        
-        return True
+                try:
+                    vc.stop()
+                    await vc.disconnect()
+                except Exception as e:
+                    print(f"[ERROR] MusicCog: Error during disconnect for guild {guild_id}: {e}")
+        try:
+            self.queues.pop(guild_id, None)
+            self.command_channels.pop(guild_id, None)
+            collect()
+        except Exception as e:
+            print(f"[ERROR] MusicCog: Error during cleanup for guild {guild_id}: {e}")
+        finally:
+            return True
 
     def _play_next(self, guild_id: int, error=None):
         if error:
-            print(f"Player error for guild {guild_id}: {error}")
+            print(f"[ERROR] MusicCog: Player error for guild {guild_id}: {error}")
 
-        if (guild_id not in self.voice_clients or not self.voice_clients[guild_id].is_connected()):
+        if guild_id not in self.voice_clients or not self.voice_clients[guild_id].is_connected():
             return
         
         if guild_id in self.queues and self.queues[guild_id]:
@@ -127,12 +134,11 @@ class MusicCog(commands.Cog):
                 coro = channel.send(f":notes: Now playing: **{title}**")
                 future = run_coroutine_threadsafe(coro, self.bot.loop)
                 try:
-                    future.result()
+                    future.result(timeout=5)
                 except Exception as e:
-                    print(f"Error sending message: {e}")
+                    print(f"[ERROR] MusicCog: Error sending 'Now playing' message: {e}")
         else:
-            coro = self._disconnect_and_cleanup(guild_id)
-            future = run_coroutine_threadsafe(coro, self.bot.loop)
+            self.bot.loop.create_task(self._disconnect_and_cleanup(guild_id))
 
     @app_commands.command(
         name="stop",
@@ -232,7 +238,6 @@ class MusicCog(commands.Cog):
                 await interaction.response.send_message(":x: No music is currently playing.", ephemeral=True)
         else:
             await interaction.response.send_message(":x: The bot is not connected to a voice channel.", ephemeral=True)
-
 
 async def setup(bot: "UiPy"):
     await bot.add_cog(MusicCog(bot))

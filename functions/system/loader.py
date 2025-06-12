@@ -22,7 +22,7 @@ class LoaderCog(commands.Cog):
         try:
             await self.bot.load_extension(f"functions.{extension}")
             print(
-                f"[INFO] {extension} loaded at {strftime('%A, %d %b %Y, %I:%M:%S %p', localtime())}."
+                f"[INFO] LoaderCog: {extension} loaded at {strftime('%A, %d %b %Y, %I:%M:%S %p', localtime())}."
             )
             description = (
                 f":white_check_mark: Loaded extension '{extension}' successfully."
@@ -39,7 +39,7 @@ class LoaderCog(commands.Cog):
             description = f":x: Extension '{extension}' does not have a setup function."
         except Exception as e:
             description = f":x: An unexpected error occurred: {e}"
-            print(f"[ERROR] {description}")
+            print(f"[ERROR] LoaderCog: {description}")
         await interaction.response.send_message(description, ephemeral=True)
 
     @app_commands.command(
@@ -58,7 +58,7 @@ class LoaderCog(commands.Cog):
             description = f":information_source: Extension '{extension}' is not loaded."
         except Exception as e:
             description = f":x: An unexpected error occurred: {e}"
-            print(f"[ERROR] {description}")
+            print(f"[ERROR] LoaderCog: {description}")
         await interaction.response.send_message(description, ephemeral=True)
 
     @app_commands.command(
@@ -71,7 +71,7 @@ class LoaderCog(commands.Cog):
         try:
             await self.bot.reload_extension(f"functions.{extension}")
             print(
-                f"[INFO] {extension} reloaded at {strftime('%A, %d %b %Y, %I:%M:%S %p', localtime())}."
+                f"[INFO] LoaderCog: {extension} reloaded at {strftime('%A, %d %b %Y, %I:%M:%S %p', localtime())}."
             )
             description = (
                 f":white_check_mark: Reloaded extension '{extension}' successfully."
@@ -88,7 +88,7 @@ class LoaderCog(commands.Cog):
             description = f":x: Extension '{extension}' does not have a setup function."
         except Exception as e:
             description = f":x: An unexpected error occurred: {e}"
-            print(f"[ERROR] {description}")
+            print(f"[ERROR] LoaderCog: {description}")
         await interaction.response.send_message(description, ephemeral=True)
 
 

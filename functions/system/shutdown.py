@@ -26,7 +26,7 @@ class CloseCog(commands.Cog):
         try:
             await interaction.client.close()
         except Exception as e:
-            print(f"[ERROR] Failed to shut down the bot: {e}")
+            print(f"[ERROR] ShutdownCog: Failed to shut down the bot: {e}")
 
     @shutdown_bot.error
     async def on_shutdown_error(self, interaction: Interaction, error: app_commands.AppCommandError) -> None:
@@ -37,7 +37,7 @@ class CloseCog(commands.Cog):
                 ephemeral=True
             )
         else:
-            print(f"[ERROR] Unexpected error in shutdown command: {error}")
+            print(f"[ERROR] ShutdownCog: Unexpected error in shutdown command: {error}")
 
 
 async def setup(bot: "UiPy"):

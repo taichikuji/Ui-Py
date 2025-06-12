@@ -45,7 +45,7 @@ class ClearCog(commands.Cog):
                 ephemeral=True
             )
         else:
-            print(f"[ERROR] An unexpected error occurred: {error}")
+            print(f"[ERROR] ClearCog: An unexpected error occurred: {error}")
 
 
 async def setup(bot: "UiPy"):

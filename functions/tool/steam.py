@@ -10,7 +10,6 @@ if TYPE_CHECKING:
     from main import UiPy
 
 try:
-    # Attempt to get Steam API Key from environment variables
     STEAM_TOKEN = environ.get("STEAM_TOKEN")
 except Exception as e:
     print(f"[ERROR] SteamCog: Failed to load STEAM_TOKEN from environment. {e}")
