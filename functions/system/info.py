@@ -25,7 +25,7 @@ class InfoCog(commands.Cog):
 
     async def create_embed(self):
         em = {
-            "title": "Bot's Info",
+            "title": ":information_source: Bot's Info",
             "description": "Here's some information about me and my dependencies!",
             "color": self.bot.color,
             "fields": [

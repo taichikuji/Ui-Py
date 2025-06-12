@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Dict, List, Tuple
 from asyncio import get_running_loop, run_coroutine_threadsafe
 from discord.ext import commands
-from discord import FFmpegPCMAudio, Interaction, app_commands, VoiceClient, TextChannel, Member
+from discord import FFmpegPCMAudio, Interaction, app_commands, VoiceClient, TextChannel, Member, Embed
 from yt_dlp import YoutubeDL
 
 if TYPE_CHECKING:
@@ -207,7 +207,12 @@ class MusicCog(commands.Cog):
             )
             if len(self.queues[guild_id]) > 10:
                 queue_list += f"\n...and {len(self.queues[guild_id]) - 10} more."
-            await interaction.response.send_message(f":musical_note: **Current Queue:**\n{queue_list}")
+            em = {
+                "title": ":notes: Music Queue",
+                "description": queue_list,
+                "color": self.bot.color,
+            }
+            await interaction.response.send_message(embed=Embed.from_dict(em))
 
     @app_commands.command(
         name="skip",
