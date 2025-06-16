@@ -7,15 +7,15 @@ if TYPE_CHECKING:
 
 
 class SyncCog(commands.Cog):
-    """Cog for syncing application commands globally or per guild (owner only)."""
+    """Cog for syncing application commands globally or per guild (admin only)."""
     def __init__(self, bot: "UiPy"):
         self.bot = bot
 
     @commands.hybrid_group(
         name="sync",
-        description="Sync application commands (Owner Only)",
+        description="Sync application commands (Admin Only)",
     )
-    @commands.is_owner()
+    @commands.has_permissions(administrator=True)
     async def sync(self, ctx: commands.Context) -> None:
         """Base sync command group."""
         if ctx.invoked_subcommand is None:
@@ -28,7 +28,7 @@ class SyncCog(commands.Cog):
         name="global", 
         description="Sync commands globally (can take up to an hour)."
     )
-    @commands.is_owner()
+    @commands.has_permissions(administrator=True)
     async def sync_global(self, ctx: commands.Context) -> None:
         """Sync commands globally."""
         is_slash = ctx.interaction is not None
@@ -60,7 +60,7 @@ class SyncCog(commands.Cog):
         name="guild", 
         description="Sync commands to the current guild (usually instant)."
     )
-    @commands.is_owner()
+    @commands.has_permissions(administrator=True)
     async def sync_guild(self, ctx: commands.Context) -> None:
         """Sync commands to the current guild."""
         is_slash = ctx.interaction is not None
@@ -104,6 +104,18 @@ class SyncCog(commands.Cog):
             else:
                 await ctx.send(msg)
 
+    @sync.error
+    async def on_sync_error(self, ctx: commands.Context, error: commands.CommandError) -> None:
+        """Handle errors for the sync command."""
+        is_slash = ctx.interaction is not None
+        if isinstance(error, commands.MissingPermissions):
+            msg = ":x: You need Administrator permissions to use this command."
+            if is_slash and ctx.interaction:
+                await ctx.interaction.followup.send(msg, ephemeral=True)
+            else:
+                await ctx.send(msg)
+        else:
+            print(f"[ERROR] SyncCog: Unexpected error in sync command: {error}")
 
 async def setup(bot: "UiPy"):
     """Add the SyncCog to the bot."""

@@ -91,6 +91,18 @@ class LoaderCog(commands.Cog):
             print(f"[ERROR] LoaderCog: {description}")
         await interaction.response.send_message(description, ephemeral=True)
 
+    @load.error
+    @unload.error
+    @reload.error
+    async def on_loader_error(self, interaction: Interaction, error: app_commands.AppCommandError) -> None:
+        """Handle errors for the loader commands."""
+        if isinstance(error, app_commands.errors.MissingPermissions):
+            await interaction.response.send_message(
+                ":x: You need Administrator permissions to run this command.",
+                ephemeral=True
+            )
+        else:
+            print(f"[ERROR] LoaderCog: Unexpected error in command: {error}")
 
 async def setup(bot: "UiPy"):
     """Add the LoaderCog to the bot."""
