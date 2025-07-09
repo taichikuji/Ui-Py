@@ -13,7 +13,7 @@ class NintendoCog(commands.Cog):
     """Cog for Nintendo Switch Friend Code linking and sharing."""
     def __init__(self, bot: "UiPy"):
         self.bot = bot
-        self.db_path = "data/nintendo_links.sqlite"
+        self.db_path = "data/ui.sqlite"
 
     async def cog_load(self):
         await self._init_db()
@@ -24,62 +24,62 @@ class NintendoCog(commands.Cog):
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS nintendo_links (
                     discord_id INTEGER PRIMARY KEY,
-                    friend_code TEXT NOT NULL
+                    nintendo_id TEXT NOT NULL
                 )
             """)
             await db.commit()
 
-    async def _save_nintendo_link(self, discord_id: int, friend_code: str):
+    async def _save_nintendo_link(self, discord_id: int, nintendo_id: str):
         async with connect(self.db_path) as db:
             await db.execute(
-                "INSERT OR REPLACE INTO nintendo_links (discord_id, friend_code) VALUES (?, ?)",
-                (discord_id, friend_code)
+                "INSERT OR REPLACE INTO nintendo_links (discord_id, nintendo_id) VALUES (?, ?)",
+                (discord_id, nintendo_id)
             )
             await db.commit()
 
     async def _get_nintendo_link(self, discord_id: int) -> Optional[str]:
         async with connect(self.db_path) as db:
-            async with db.execute("SELECT friend_code FROM nintendo_links WHERE discord_id = ?", (discord_id,)) as cursor:
+            async with db.execute("SELECT nintendo_id FROM nintendo_links WHERE discord_id = ?", (discord_id,)) as cursor:
                 if row := await cursor.fetchone():
                     return row[0]
                 return None
 
-    def _validate_friend_code(self, friend_code: str) -> bool:
+    def _validate_nintendo_id(self, nintendo_id: str) -> bool:
         """Validate Nintendo Switch Friend Code format: SW-####-####-####"""
-        return bool(fullmatch(r"SW-\d{4}-\d{4}-\d{4}", friend_code.upper()))
+        return bool(fullmatch(r"SW-\d{4}-\d{4}-\d{4}", nintendo_id.upper()))
 
-    @app_commands.command(name="link", description="Link your Discord account to a Nintendo Switch Friend Code.")
-    async def link_nintendo(self, interaction: Interaction, friend_code: str):
+    @app_commands.command(name="link-nintendo", description="Link your Discord account to a Nintendo Switch Friend Code.")
+    async def link_nintendo(self, interaction: Interaction, nintendo_id: str):
         await interaction.response.defer(ephemeral=True)
+
+        # Clean friend code input
+        nintendo_id = nintendo_id.strip().upper()
         
-        # Clean and validate the friend code
-        cleaned_code = friend_code.strip().upper()
-        
-        if not self._validate_friend_code(cleaned_code):
+        if not self._validate_nintendo_id(nintendo_id):
             await interaction.followup.send(
                 ":x: Invalid Friend Code format. Please use the format: `SW-####-####-####`\n"
                 "Example: `SW-1234-5678-9012`"
             )
             return
         
-        await self._save_nintendo_link(interaction.user.id, cleaned_code)
+        await self._save_nintendo_link(interaction.user.id, nintendo_id)
         await interaction.followup.send(
-            f":white_check_mark: Your Discord account has been successfully linked to Nintendo Friend Code: `{cleaned_code}`."
+            f":white_check_mark: Your Discord account has been successfully linked to Nintendo Friend Code: `{nintendo_id}`."
         )
 
     @app_commands.command(name="share", description="Share your linked Nintendo Switch Friend Code.")
     async def share_nintendo(self, interaction: Interaction):
         await interaction.response.defer()
         
-        if not (linked_friend_code := await self._get_nintendo_link(interaction.user.id)):
+        if not (linked_nintendo_id := await self._get_nintendo_link(interaction.user.id)):
             await interaction.followup.send(
                 ":information_source: You haven't linked a Nintendo Switch Friend Code yet. "
-                "Please use `/link <your_friend_code>` command first."
+                "Please use `/link <your_nintendo_id>` command first."
             )
             return
         
         await interaction.followup.send(
-            f"Here's my Nintendo Switch Friend ID! `{linked_friend_code}`"
+            f"Here's my Nintendo Switch Friend ID! `{linked_nintendo_id}`"
         )
 
 
