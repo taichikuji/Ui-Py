@@ -74,7 +74,7 @@ class NintendoCog(commands.Cog):
         if not (linked_nintendo_id := await self._get_nintendo_link(interaction.user.id)):
             await interaction.followup.send(
                 ":information_source: You haven't linked a Nintendo Switch Friend Code yet. "
-                "Please use `/link <your_nintendo_id>` command first."
+                "Please use `/link-nintendo <your_nintendo_id>` command first."
             )
             return
         
