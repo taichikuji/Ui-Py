@@ -4,7 +4,6 @@ from os import environ, makedirs, path
 from aiosqlite import connect
 from discord import Interaction, app_commands, Embed
 from discord.ext import commands
-import traceback
 
 if TYPE_CHECKING:
     from main import UiPy
@@ -20,7 +19,7 @@ class SteamCog(commands.Cog):
     def __init__(self, bot: "UiPy"):
         self.bot = bot
         self.steam_api_base = "https://api.steampowered.com"
-        self.db_path = "data/steam_links.sqlite"
+        self.db_path = "data/ui.sqlite"
 
     async def cog_load(self):
         await self._init_db()
@@ -96,7 +95,7 @@ class SteamCog(commands.Cog):
         # Default return if no resolution
         return None
 
-    @app_commands.command( name="link", description="Link your Discord account to a Steam ID or vanity URL." )
+    @app_commands.command( name="link-steam", description="Link your Discord account to a Steam ID or vanity URL." )
     async def link_steam(self, interaction: Interaction, steam_identifier: str):
         await interaction.response.defer(ephemeral=True)
         
