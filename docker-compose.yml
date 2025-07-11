@@ -7,7 +7,7 @@ services:
       - TOKEN=${TOKEN}
       - STEAM_TOKEN=${STEAM_TOKEN}
     volumes:
-      - steam_db:/usr/src/app/data
+      - ui_db:/usr/src/app/data
 
 volumes:
-  steam_db:
+  ui_db:
