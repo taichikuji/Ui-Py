@@ -83,12 +83,6 @@ class SyncCog(commands.Cog):
                 await ctx.interaction.followup.send(msg, ephemeral=True)
             else:
                 await ctx.send(msg)
-        except Forbidden as e:
-            msg = f"Failed to sync to guild {target_guild_object.id}: Missing Permissions. {e}"
-            if is_slash and ctx.interaction:
-                await ctx.interaction.followup.send(msg, ephemeral=True)
-            else:
-                await ctx.send(msg)
         except HTTPException as e:
             msg = (
                 f"Failed to sync to guild {target_guild_object.id}: {e.status} {e.text}"
@@ -105,13 +99,15 @@ class SyncCog(commands.Cog):
                 await ctx.send(msg)
 
     @sync.error
+    @sync_global.error
+    @sync_guild.error
     async def on_sync_error(self, ctx: commands.Context, error: commands.CommandError) -> None:
         """Handle errors for the sync command."""
         is_slash = ctx.interaction is not None
         if isinstance(error, commands.MissingPermissions):
-            msg = ":x: You need Administrator permissions to use this command."
+            msg = ":x: You need Administrator permissions to run this command."
             if is_slash and ctx.interaction:
-                await ctx.interaction.followup.send(msg, ephemeral=True)
+                await ctx.interaction.response.send_message(msg, ephemeral=True)
             else:
                 await ctx.send(msg)
         else:
