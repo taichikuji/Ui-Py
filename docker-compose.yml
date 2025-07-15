@@ -1,6 +1,7 @@
 services:
   discord:
     build: ./
+    # image: ghcr.io/taichikuji/ui-py
     restart: always
     container_name: ui
     environment:
@@ -8,6 +9,20 @@ services:
       - STEAM_TOKEN=${STEAM_TOKEN}
     volumes:
       - ui_db:/usr/src/app/data
+    # labels:
+    #   - "com.centurylinklabs.watchtower.enable=true"
+
+  # Uncomment the commented sections to enable watchtower for automatic updates with Ui-Py
+  # watchtower:
+  #   image: containrrr/watchtower
+  #   restart: always
+  #   container_name: watchtower
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #   environment:
+  #     - WATCHTOWER_CLEANUP=true
+  #     - WATCHTOWER_TIMEOUT=30s
+  #     - WATCHTOWER_LABEL_ENABLE=true
 
 volumes:
   ui_db:
