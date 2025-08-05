@@ -14,7 +14,7 @@ class MusicCog(commands.Cog):
     def __init__(self, bot: "UiPy"):
         self.bot = bot
         self.voice_clients: Dict[int, VoiceClient] = {}
-        self.queues: Dict[int, List[Tuple[str, str]]] = {}
+        self.queues: Dict[int, List[Tuple[str, str, str]]] = {}
         self.command_channels: Dict[int, TextChannel] = {}
         self.ydl_opts = {
             "format": "bestaudio/best",
@@ -72,6 +72,7 @@ class MusicCog(commands.Cog):
                         raise ValueError("No URL found in the extracted information.")
                     url = info["url"]
                     title = info.get("title", "Unknown Title")
+                    duration = info.get("duration_string", "N/A")
                 else:
                     raise ValueError("Failed to extract information")
             except Exception as e:
@@ -90,10 +91,10 @@ class MusicCog(commands.Cog):
 
         if not vc.is_playing() and not vc.is_paused() and not self.queues[guild_id]:
             self._play_song(guild_id, url)
-            await interaction.followup.send(f":notes: Now playing: **{title}**")
+            await interaction.followup.send(f":notes: Now playing: **{title}** [{duration}]")
         else:
-            self.queues[guild_id].append((url, title))
-            await interaction.followup.send(f":ballot_box_with_check: Added to queue: **{title}**")
+            self.queues[guild_id].append((url, title, duration))
+            await interaction.followup.send(f":ballot_box_with_check: Added to queue: **{title}** [{duration}]")
 
     def _play_song(self, guild_id: int, url: str):
         vc: VoiceClient = self.voice_clients[guild_id]
@@ -128,10 +129,10 @@ class MusicCog(commands.Cog):
             return
         
         if guild_id in self.queues and self.queues[guild_id]:
-            url, title = self.queues[guild_id].pop(0)
+            url, title, duration = self.queues[guild_id].pop(0)
             self._play_song(guild_id, url)
             if guild_id in self.command_channels and (channel := self.command_channels[guild_id]):
-                coro = channel.send(f":notes: Now playing: **{title}**")
+                coro = channel.send(f":notes: Now playing: **{title}** [{duration}]")
                 future = run_coroutine_threadsafe(coro, self.bot.loop)
                 try:
                     future.result(timeout=5)
@@ -207,8 +208,8 @@ class MusicCog(commands.Cog):
         else:
             queue_list = "\n".join(
                 [
-                    f"{i+1}. {title}"
-                    for i, (_, title) in enumerate(self.queues[guild_id][:10])
+                    f"{i+1}. {title} [{duration}]"
+                    for i, (_, title, duration) in enumerate(self.queues[guild_id][:10])
                 ]
             )
             if len(self.queues[guild_id]) > 10:
