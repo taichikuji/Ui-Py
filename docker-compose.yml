@@ -20,6 +20,7 @@ services:
   #   volumes:
   #     - /var/run/docker.sock:/var/run/docker.sock
   #   environment:
+  #     - WATCHTOWER_SCHEDULE=0 0 0 * * *
   #     - WATCHTOWER_CLEANUP=true
   #     - WATCHTOWER_TIMEOUT=30s
   #     - WATCHTOWER_LABEL_ENABLE=true
