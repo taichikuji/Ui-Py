@@ -22,22 +22,27 @@ log() {
 }
 
 prune() {
-    log "$SUCCESS" "Starting cleanup..."
     if docker-compose down --rmi local --volumes --remove-orphans; then
         log "$SUCCESS" "Docker cleanup successful"
     else
         log "$ERROR" "Docker cleanup failed"; exit 1
     fi
-    log "$SUCCESS" "Cleanup completed"
 }
 
 reset_git() {
-    log "$SUCCESS" "Starting git reset..."
     default_branch=$(git remote show origin | grep 'HEAD branch' | awk '{print $NF}')
     if git fetch --all && git reset --hard "origin/$default_branch"; then
         log "$SUCCESS" "Git reset to latest commit successful"
     else
         log "$ERROR" "Git reset failed"; exit 1
+    fi
+}
+
+cleanup_buildkit() {
+    if docker ps -a --filter "name=buildx_buildkit" --format "table {{.Names}}" | grep buildx_buildkit | xargs -r docker rm -f 2>/dev/null; then
+        log "$SUCCESS" "BuildKit containers removed"
+    else
+        log "$ERROR" "No BuildKit containers to remove"
     fi
 }
 
@@ -69,6 +74,7 @@ fi
 
 # Build and start new version
 if docker-compose build --force-rm && docker-compose up -d; then
+    cleanup_buildkit
     log "$SUCCESS" "Build and start successful"
 else
     log "$ERROR" "Build/start failed"; exit 1
