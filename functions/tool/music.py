@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Dict, List, Tuple
 from asyncio import get_running_loop, run_coroutine_threadsafe
 from gc import collect
+from random import shuffle
 from discord.ext import commands
 from discord import FFmpegPCMAudio, Interaction, app_commands, VoiceClient, TextChannel, Member, Embed
 from yt_dlp import YoutubeDL
@@ -239,6 +240,21 @@ class MusicCog(commands.Cog):
                 await interaction.response.send_message(":x: No music is currently playing.", ephemeral=True)
         else:
             await interaction.response.send_message(":x: The bot is not connected to a voice channel.", ephemeral=True)
+
+    @app_commands.command(
+        name="shuffle",
+        description="Shuffle the current music queue."
+    )
+    async def shuffle(self, interaction: Interaction):
+        guild_id = interaction.guild_id
+        if guild_id is None:
+            await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
+            return
+        if guild_id in self.queues and self.queues[guild_id]:
+            shuffle(self.queues[guild_id])
+            await interaction.response.send_message(":twisted_rightwards_arrows: Queue shuffled.")
+        else:
+            await interaction.response.send_message(":x: The music queue is currently empty.", ephemeral=True)
 
 async def setup(bot: "UiPy"):
     await bot.add_cog(MusicCog(bot))
