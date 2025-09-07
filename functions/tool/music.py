@@ -52,15 +52,19 @@ class MusicCog(commands.Cog):
             await interaction.response.send_message(":x: You need to be in a voice channel to use this command.", ephemeral=True)
             return
 
+        await interaction.response.defer()
+        
         voice_channel = user.voice.channel
         vc: VoiceClient
         if guild_id not in self.voice_clients or not self.voice_clients[guild_id].is_connected():
-            vc = await voice_channel.connect()
-            self.voice_clients[guild_id] = vc
+            try:
+                vc = await voice_channel.connect(self_deaf=True)
+                self.voice_clients[guild_id] = vc
+            except Exception as e:
+                await interaction.followup.send(f":x: Failed to connect to the voice channel. Error: {e}", ephemeral=True)
+                return
         else:
             vc = self.voice_clients[guild_id]
-
-        await interaction.response.defer()
 
         with YoutubeDL(self.ydl_opts) as ydl:
             try:
