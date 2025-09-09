@@ -16,6 +16,7 @@ class MusicCog(commands.Cog):
         self.bot = bot
         self.voice_clients: Dict[int, VoiceClient] = {}
         self.queues: Dict[int, List[Tuple[str, str, str]]] = {}
+        self.currently_playing: Dict[int, Tuple[str, str, str]] = {}
         self.command_channels: Dict[int, TextChannel] = {}
         self.ydl_opts = {
             "format": "bestaudio/best",
@@ -95,13 +96,14 @@ class MusicCog(commands.Cog):
             self.queues[guild_id] = []
 
         if not vc.is_playing() and not vc.is_paused() and not self.queues[guild_id]:
-            self._play_song(guild_id, url)
+            self._play_song(guild_id, url, title, duration)
             await interaction.followup.send(f":notes: Now playing: **{title}** [{duration}]")
         else:
             self.queues[guild_id].append((url, title, duration))
             await interaction.followup.send(f":ballot_box_with_check: Added to queue: **{title}** [{duration}]")
 
-    def _play_song(self, guild_id: int, url: str):
+    def _play_song(self, guild_id: int, url: str, title: str, duration: str):
+        self.currently_playing[guild_id] = (url, title, duration)
         vc: VoiceClient = self.voice_clients[guild_id]
         vc.play(
             FFmpegPCMAudio(url, before_options=self.ffmpeg_opts["before_options"], options=self.ffmpeg_opts["options"]),
@@ -120,6 +122,7 @@ class MusicCog(commands.Cog):
         try:
             self.queues.pop(guild_id, None)
             self.command_channels.pop(guild_id, None)
+            self.currently_playing.pop(guild_id, None)
             collect()
         except Exception as e:
             print(f"[ERROR] MusicCog: Error during cleanup for guild {guild_id}: {e}")
@@ -135,7 +138,7 @@ class MusicCog(commands.Cog):
         
         if guild_id in self.queues and self.queues[guild_id]:
             url, title, duration = self.queues[guild_id].pop(0)
-            self._play_song(guild_id, url)
+            self._play_song(guild_id, url, title, duration)
             if guild_id in self.command_channels and (channel := self.command_channels[guild_id]):
                 coro = channel.send(f":notes: Now playing: **{title}** [{duration}]")
                 future = run_coroutine_threadsafe(coro, self.bot.loop)
@@ -144,6 +147,7 @@ class MusicCog(commands.Cog):
                 except Exception as e:
                     print(f"[ERROR] MusicCog: Error sending 'Now playing' message: {e}")
         else:
+            self.currently_playing.pop(guild_id, None)
             self.bot.loop.create_task(self._disconnect_and_cleanup(guild_id))
 
     @app_commands.command(
@@ -208,17 +212,23 @@ class MusicCog(commands.Cog):
         if guild_id is None:
             await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
             return
-        if guild_id not in self.queues or not self.queues[guild_id]:
+
+        queue_items = []
+        if guild_id in self.currently_playing:
+            _, title, duration = self.currently_playing[guild_id]
+            queue_items.append(f"**Now Playing:** {title} [{duration}]")
+
+        if guild_id in self.queues and self.queues[guild_id]:
+            for i, (_, title, duration) in enumerate(self.queues[guild_id][:10]):
+                queue_items.append(f"{i+1}. {title} [{duration}]")
+            
+            if len(self.queues[guild_id]) > 10:
+                queue_items.append(f"\n...and {len(self.queues[guild_id]) - 10} more.")
+
+        if not queue_items:
             await interaction.response.send_message(":x: The music queue is currently empty.")
         else:
-            queue_list = "\n".join(
-                [
-                    f"{i+1}. {title} [{duration}]"
-                    for i, (_, title, duration) in enumerate(self.queues[guild_id][:10])
-                ]
-            )
-            if len(self.queues[guild_id]) > 10:
-                queue_list += f"\n...and {len(self.queues[guild_id]) - 10} more."
+            queue_list = "\n".join(queue_items)
             em = {
                 "title": ":notes: Music Queue",
                 "description": queue_list,
