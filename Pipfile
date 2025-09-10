@@ -11,6 +11,7 @@ flake8 = "*"
 isort = "*"
 mypy = "*"
 pyupgrade = "*"
+autoflake = "*"
 
 [packages]
 discord = {py = {extras = ["voice"], version = "*"}}

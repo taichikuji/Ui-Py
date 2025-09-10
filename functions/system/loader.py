@@ -1,7 +1,8 @@
 from time import localtime, strftime
 from typing import TYPE_CHECKING
+
+from discord import Interaction, app_commands
 from discord.ext import commands
-from discord import app_commands, Interaction
 
 if TYPE_CHECKING:
     from main import UiPy

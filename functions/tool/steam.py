@@ -1,8 +1,9 @@
-from typing import TYPE_CHECKING, Optional, Dict
-from re import match, fullmatch, IGNORECASE
 from os import environ, makedirs, path
+from re import IGNORECASE, fullmatch, match
+from typing import TYPE_CHECKING
+
 from aiosqlite import connect
-from discord import Interaction, app_commands, Embed
+from discord import Embed, Interaction, app_commands
 from discord.ext import commands
 
 if TYPE_CHECKING:
@@ -43,14 +44,14 @@ class SteamCog(commands.Cog):
             )
             await db.commit()
 
-    async def _get_steam_link(self, discord_id: int) -> Optional[str]:
+    async def _get_steam_link(self, discord_id: int) -> str | None:
         async with connect(self.db_path) as db:
             async with db.execute("SELECT steam_id FROM steam_links WHERE discord_id = ?", (discord_id,)) as cursor:
                 if row := await cursor.fetchone():
                     return row[0]
                 return None
 
-    async def _resolve_steam_id(self, vanity_url_or_id: str) -> Optional[str]:
+    async def _resolve_steam_id(self, vanity_url_or_id: str) -> str | None:
         if not self.bot.session:
             print("[ERROR] SteamCog: Bot aiohttp session is not initialized.")
             return None

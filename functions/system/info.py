@@ -1,9 +1,9 @@
+import time
 from os import getpid
 from platform import machine, python_version, system
 from typing import TYPE_CHECKING
-import time
 
-from discord import Embed, app_commands, Interaction
+from discord import Embed, Interaction, app_commands
 from discord.ext import commands
 from psutil import Process, boot_time
 

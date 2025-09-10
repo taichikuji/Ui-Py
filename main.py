@@ -1,11 +1,12 @@
 from glob import iglob
-from os import sep, environ
-from discord import Intents, Activity, ActivityType
-from discord.ext import commands
+from os import environ, sep
+
 from aiohttp import ClientSession
+from discord import Activity, ActivityType, Intents
+from discord.ext import commands
 
 if (TOKEN := environ.get("TOKEN")) is None:
-    raise EnvironmentError("[ERROR] TOKEN environment variable not set")
+    raise OSError("[ERROR] TOKEN environment variable not set")
 
 
 class UiPy(commands.AutoShardedBot):

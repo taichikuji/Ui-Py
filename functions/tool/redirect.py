@@ -1,7 +1,8 @@
-from re import compile
-from typing import TYPE_CHECKING, List, Pattern, Tuple
-from discord.ext import commands
+from re import Pattern, compile
+from typing import TYPE_CHECKING
+
 from discord import Message
+from discord.ext import commands
 
 if TYPE_CHECKING:
     from main import UiPy
@@ -11,7 +12,7 @@ class ReplaceCog(commands.Cog):
     """Cog for replacing social media links with alternative frontends."""
     def __init__(self, bot: "UiPy"):
         self.bot = bot
-        self.patterns: List[Tuple[Pattern[str], str]] = [
+        self.patterns: list[tuple[Pattern[str], str]] = [
             (compile(r'https?://(?:www\.)?(?:x|twitter)\.com/(?P<user>[^/\s]+)/status/(?P<id>\d+)(?:\?[^ \s]*)?'),
              r'https://fxtwitter.com/\g<user>/status/\g<id>'),
             (compile(r'https?://(?:www\.)?(?:bsky\.social|bsky\.app)/(?P<rest>\S+)'),

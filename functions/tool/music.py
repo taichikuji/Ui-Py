@@ -1,9 +1,11 @@
-from typing import TYPE_CHECKING, Dict, List, Tuple
 from asyncio import get_running_loop, run_coroutine_threadsafe
 from gc import collect
 from random import shuffle
+from typing import TYPE_CHECKING
+
+from discord import (Embed, FFmpegPCMAudio, Interaction, Member, TextChannel,
+                     VoiceClient, app_commands)
 from discord.ext import commands
-from discord import FFmpegPCMAudio, Interaction, app_commands, VoiceClient, TextChannel, Member, Embed
 from yt_dlp import YoutubeDL
 
 if TYPE_CHECKING:
@@ -14,10 +16,10 @@ class MusicCog(commands.Cog):
     """Cog for music playback and queue management in voice channels."""
     def __init__(self, bot: "UiPy"):
         self.bot = bot
-        self.voice_clients: Dict[int, VoiceClient] = {}
-        self.queues: Dict[int, List[Tuple[str, str, str]]] = {}
-        self.currently_playing: Dict[int, Tuple[str, str, str]] = {}
-        self.command_channels: Dict[int, TextChannel] = {}
+        self.voice_clients: dict[int, VoiceClient] = {}
+        self.queues: dict[int, list[tuple[str, str, str]]] = {}
+        self.currently_playing: dict[int, tuple[str, str, str]] = {}
+        self.command_channels: dict[int, TextChannel] = {}
         self.ydl_opts = {
             "format": "bestaudio/best",
             "default_search": "ytsearch",

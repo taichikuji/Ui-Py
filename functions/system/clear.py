@@ -1,6 +1,7 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
+
+from discord import Interaction, Member, TextChannel, Thread, app_commands
 from discord.ext import commands
-from discord import Member, app_commands, Interaction, TextChannel, Thread
 
 if TYPE_CHECKING:
     from main import UiPy
@@ -16,7 +17,7 @@ class ClearCog(commands.Cog):
             description="Remove messages in bulk. Defaults to 1 message."
             )
     @app_commands.checks.has_permissions(manage_messages=True)
-    async def clear(self, interaction: Interaction, amount: int = 1, user: Optional[Member] = None) -> None:
+    async def clear(self, interaction: Interaction, amount: int = 1, user: Member | None = None) -> None:
         """Bulk delete messages, optionally filtering by user."""
         await interaction.response.defer(ephemeral=True)
         

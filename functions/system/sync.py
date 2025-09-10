@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
-from discord import HTTPException, Forbidden, Guild
+
+from discord import Guild, HTTPException
 from discord.ext import commands
 
 if TYPE_CHECKING:

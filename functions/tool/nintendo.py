@@ -1,6 +1,7 @@
-from typing import TYPE_CHECKING, Optional
-from re import fullmatch
 from os import makedirs, path
+from re import fullmatch
+from typing import TYPE_CHECKING
+
 from aiosqlite import connect
 from discord import Interaction, app_commands
 from discord.ext import commands
@@ -37,7 +38,7 @@ class NintendoCog(commands.Cog):
             )
             await db.commit()
 
-    async def _get_nintendo_link(self, discord_id: int) -> Optional[str]:
+    async def _get_nintendo_link(self, discord_id: int) -> str | None:
         async with connect(self.db_path) as db:
             async with db.execute("SELECT nintendo_id FROM nintendo_links WHERE discord_id = ?", (discord_id,)) as cursor:
                 if row := await cursor.fetchone():

@@ -1,4 +1,5 @@
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
+
 from discord import Embed, Interaction, app_commands
 from discord.ext import commands
 
@@ -14,7 +15,7 @@ class HelpCog(commands.Cog):
         name="help",
         description="Shows a list of available commands or details about a specific command.",
     )
-    async def show_help(self, interaction: Interaction, command_name: Optional[str] = None):
+    async def show_help(self, interaction: Interaction, command_name: str | None = None):
         if command_name is None:
             embed = Embed(
                 title="Help",
