@@ -76,4 +76,8 @@ For detailed project documentation, visit our [wiki](https://github.com/taichiku
 
 - <a href="https://pypi.org/project/discord.py/"><img src="https://img.shields.io/github/pipenv/locked/dependency-version/taichikuji/Ui-Py/discord.py/master"/></a>
 - <a href="https://pypi.org/project/aiohttp/"><img src="https://img.shields.io/github/pipenv/locked/dependency-version/taichikuji/Ui-Py/aiohttp/master"/></a>
+- <a href="https://pypi.org/project/psutil/"><img src="https://img.shields.io/github/pipenv/locked/dependency-version/taichikuji/Ui-Py/psutil/master"/></a>
+- <a href="https://pypi.org/project/yt-dlp/"><img src="https://img.shields.io/github/pipenv/locked/dependency-version/taichikuji/Ui-Py/yt-dlp/master"/></a>
+- <a href="https://pypi.org/project/pynacl/"><img src="https://img.shields.io/github/pipenv/locked/dependency-version/taichikuji/Ui-Py/pynacl/master"/></a>
+- <a href="https://pypi.org/project/aiosqlite/"><img src="https://img.shields.io/github/pipenv/locked/dependency-version/taichikuji/Ui-Py/aiosqlite/master"/></a>
 

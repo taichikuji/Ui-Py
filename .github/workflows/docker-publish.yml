@@ -8,6 +8,12 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'Dockerfile'
+      - 'Pipfile'
+      - 'Pipfile.lock'
+      - 'main.py'
+      - 'functions/**'
 
 jobs:
   build-and-publish:
