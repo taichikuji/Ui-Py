@@ -28,7 +28,7 @@ class MusicCog(commands.Cog):
             "extract_flat": False,
         }
         self.ffmpeg_opts = {
-            "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+            "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -analyzeduration 10M -probesize 10M",
             "options": "-vn",
         }
 
