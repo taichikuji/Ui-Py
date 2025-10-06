@@ -14,7 +14,7 @@ pyupgrade = "*"
 autoflake = "*"
 
 [packages]
-discord = {py = {extras = ["voice"], version = "*"}}
+discord = {extras = ["voice"], version = "*"}
 aiohttp = "*"
 psutil = "*"
 yt-dlp = "*"
