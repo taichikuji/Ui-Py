@@ -1,0 +1,25 @@
+name: Container Cleanup
+
+permissions:
+  contents: read
+  packages: write
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Delete old container images
+      uses: snok/container-retention-policy@v2
+      with:
+        image-names: ui-py
+        cut-off: 30 days ago UTC
+        keep-at-least: 5
+        skip-tags: latest
+        account-type: personal
+        token: ${{ secrets.GITHUB_TOKEN }}
