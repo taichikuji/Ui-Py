@@ -69,40 +69,116 @@ class MusicCog(commands.Cog):
         else:
             vc = self.voice_clients[guild_id]
 
-        with YoutubeDL(self.ydl_opts) as ydl:
-            try:
-                if info := await get_running_loop().run_in_executor(
-                    None, lambda: ydl.extract_info(query, download=False)
-                ):
-                    if "entries" in info:
-                        info = info["entries"][0]
-                    if "url" not in info:
-                        raise ValueError("No URL found in the extracted information.")
-                    url = info["url"]
-                    title = info.get("title", "Unknown Title")
-                    duration = info.get("duration_string", "N/A")
-                else:
-                    raise ValueError("Failed to extract information")
-            except Exception as e:
-                await interaction.followup.send(f":x: Failed to retrieve video. Error: {e}", ephemeral=True)
+        is_playlist = "list=" in query
+        
+        if is_playlist:
+            ydl_opts_playlist = self.ydl_opts.copy()
+            ydl_opts_playlist["noplaylist"] = False
+            ydl_opts_playlist["extract_flat"] = "in_playlist"
+            
+            with YoutubeDL(ydl_opts_playlist) as ydl:
+                try:
+                    if info := await get_running_loop().run_in_executor(
+                        None, lambda: ydl.extract_info(query, download=False)
+                    ):
+                        if "entries" not in info:
+                            await interaction.followup.send(":x: No playlist found at the provided URL.", ephemeral=True)
+                            return
+                        
+                        entries = [e for e in info["entries"] if e]
+                        if not entries:
+                            await interaction.followup.send(":x: The playlist is empty or unavailable.", ephemeral=True)
+                            return
+                        
+                        playlist_title = info.get("title", "Unknown Playlist")
+                        
+                        channel = interaction.channel
+                        if not isinstance(channel, TextChannel):
+                            await interaction.followup.send(":x: This command must be used in a text channel.", ephemeral=True)
+                            return
+                        
+                        self.command_channels[guild_id] = channel
+                        
+                        if guild_id not in self.queues:
+                            self.queues[guild_id] = []
+                        
+                        is_currently_playing = vc.is_playing() or vc.is_paused() or self.queues[guild_id]
+                        
+                        first_entry = entries[0]
+                        remaining_entries = entries[1:]
+                        
+                        first_url = first_entry.get("url") or f"https://www.youtube.com/watch?v={first_entry['id']}"
+                        
+                        with YoutubeDL(self.ydl_opts) as ydl_single:
+                            try:
+                                first_info = await get_running_loop().run_in_executor(
+                                    None, lambda: ydl_single.extract_info(first_url, download=False)
+                                )
+                                if not first_info or "url" not in first_info:
+                                    raise ValueError("No URL found for first song.")
+                                first_stream_url = first_info["url"]
+                                first_title = first_info.get("title", "Unknown Title")
+                                first_duration = first_info.get("duration_string", "N/A")
+                            except Exception as e:
+                                await interaction.followup.send(f":x: Failed to retrieve first song. Error: {e}", ephemeral=True)
+                                return
+                        
+                        if is_currently_playing:
+                            self.queues[guild_id].append((first_stream_url, first_title, first_duration))
+                            await interaction.followup.send(
+                                f":ballot_box_with_check: Adding playlist **{playlist_title}** to queue ({len(entries)} songs)..."
+                            )
+                        else:
+                            self._play_song(guild_id, first_stream_url, first_title, first_duration)
+                            await interaction.followup.send(
+                                f":notes: Now playing: **{first_title}** [{first_duration}]\n"
+                                f":ballot_box_with_check: Loading playlist **{playlist_title}** ({len(remaining_entries)} more songs)..."
+                            )
+                        
+                        if remaining_entries:
+                            self.bot.loop.create_task(
+                                self._load_playlist_background(guild_id, remaining_entries)
+                            )
+                    else:
+                        raise ValueError("Failed to extract playlist information")
+                except Exception as e:
+                    await interaction.followup.send(f":x: Failed to retrieve playlist. Error: {e}", ephemeral=True)
+                    return
+        else:
+            with YoutubeDL(self.ydl_opts) as ydl:
+                try:
+                    if info := await get_running_loop().run_in_executor(
+                        None, lambda: ydl.extract_info(query, download=False)
+                    ):
+                        if "entries" in info:
+                            info = info["entries"][0]
+                        if "url" not in info:
+                            raise ValueError("No URL found in the extracted information.")
+                        url = info["url"]
+                        title = info.get("title", "Unknown Title")
+                        duration = info.get("duration_string", "N/A")
+                    else:
+                        raise ValueError("Failed to extract information")
+                except Exception as e:
+                    await interaction.followup.send(f":x: Failed to retrieve video. Error: {e}", ephemeral=True)
+                    return
+
+            channel = interaction.channel
+            if not isinstance(channel, TextChannel):
+                await interaction.followup.send(":x: This command must be used in a text channel.", ephemeral=True)
                 return
 
-        channel = interaction.channel
-        if not isinstance(channel, TextChannel):
-            await interaction.followup.send(":x: This command must be used in a text channel.", ephemeral=True)
-            return
+            self.command_channels[guild_id] = channel
 
-        self.command_channels[guild_id] = channel
+            if guild_id not in self.queues:
+                self.queues[guild_id] = []
 
-        if guild_id not in self.queues:
-            self.queues[guild_id] = []
-
-        if not vc.is_playing() and not vc.is_paused() and not self.queues[guild_id]:
-            self._play_song(guild_id, url, title, duration)
-            await interaction.followup.send(f":notes: Now playing: **{title}** [{duration}]")
-        else:
-            self.queues[guild_id].append((url, title, duration))
-            await interaction.followup.send(f":ballot_box_with_check: Added to queue: **{title}** [{duration}]")
+            if not vc.is_playing() and not vc.is_paused() and not self.queues[guild_id]:
+                self._play_song(guild_id, url, title, duration)
+                await interaction.followup.send(f":notes: Now playing: **{title}** [{duration}]")
+            else:
+                self.queues[guild_id].append((url, title, duration))
+                await interaction.followup.send(f":ballot_box_with_check: Added to queue: **{title}** [{duration}]")
 
     def _play_song(self, guild_id: int, url: str, title: str, duration: str):
         self.currently_playing[guild_id] = (url, title, duration)
@@ -151,6 +227,30 @@ class MusicCog(commands.Cog):
         else:
             self.currently_playing.pop(guild_id, None)
             self.bot.loop.create_task(self._disconnect_and_cleanup(guild_id))
+
+    async def _load_playlist_background(self, guild_id: int, entries: list):
+        if guild_id not in self.queues:
+            return
+        
+        with YoutubeDL(self.ydl_opts) as ydl:
+            for entry in entries:
+                if guild_id not in self.voice_clients:
+                    break
+                
+                try:
+                    video_url = entry.get("url") or f"https://www.youtube.com/watch?v={entry['id']}"
+                    if info := await get_running_loop().run_in_executor(
+                        None, lambda url=video_url: ydl.extract_info(url, download=False)
+                    ):
+                        if "url" not in info:
+                            continue
+                        url = info["url"]
+                        title = info.get("title", "Unknown Title")
+                        duration = info.get("duration_string", "N/A")
+                        self.queues[guild_id].append((url, title, duration))
+                except Exception as e:
+                    print(f"[ERROR] MusicCog: Failed to load playlist entry: {e}")
+                    continue
 
     @app_commands.command(
         name="stop",
