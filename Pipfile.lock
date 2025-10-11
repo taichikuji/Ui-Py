@@ -271,11 +271,11 @@
                 "voice"
             ],
             "hashes": [
-                "sha256:69835269d73d9889a2f0efff4c91264a18998db0fdc4295a3c886fe9196dea4e",
-                "sha256:92bb3ef9dbe08525803be1e357bc0191f59ae16956690fc96c34f40bcd02c649"
+                "sha256:2783b7fb7f8affa26847bfc025144652c294e8fe6e0f8877c67ed895749eb227",
+                "sha256:44384920bae9b7a073df64ae9b14c8cf85f9274b5ad5d1d07bd5a67539de2da9"
             ],
             "markers": "python_version >= '3.8'",
-            "version": "==2.6.3"
+            "version": "==2.6.4"
         },
         "frozenlist": {
             "hashes": [
@@ -698,7 +698,6 @@
                 "sha256:fd6f30fdcf9ae2a70abd34da54f18da086160e4d7d9251f81f3da0ff84fc5a48",
                 "sha256:fe49d0a85038f36ba9e3ffafa1103e61170b28e95b16622e11be0a0ea07c6781"
             ],
-            "index": "pypi",
             "markers": "python_version >= '3.9'",
             "version": "==0.4.1"
         },
