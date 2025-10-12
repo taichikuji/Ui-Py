@@ -10,6 +10,5 @@ updates:
     schedule:
       interval: "weekly"
     allow:
-      - dependency-type: "direct"
-      - dependency-type: "indirect"
+      - dependency-type: "all"
     open-pull-requests-limit: 10
