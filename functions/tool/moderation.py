@@ -39,7 +39,7 @@ class VotekickView(View):
             embed.set_field_at(1, name="Votes", value=f":heavy_check_mark: Yes: {len(self.yes_votes)}\n:x: No: {len(self.no_votes)}", inline=True)
             await interaction.response.edit_message(embed=embed, view=self)
 
-    @button(emoji=":heavy_check_mark:", style=ButtonStyle.success)
+    @button(label="Yes", style=ButtonStyle.green)
     async def yes_button(self, interaction: Interaction, button: Button):
         if interaction.user.id in self.yes_votes or interaction.user.id in self.no_votes:
             await interaction.response.send_message(":x: You have already voted.", ephemeral=True)
@@ -74,7 +74,7 @@ class VotekickView(View):
                 await original_channel.set_permissions(self.target, overwrite=None)
 
 
-    @button(emoji=":x:", style=ButtonStyle.danger)
+    @button(label="No", style=ButtonStyle.red)
     async def no_button(self, interaction: Interaction, button: Button):
         if interaction.user.id in self.yes_votes or interaction.user.id in self.no_votes:
             await interaction.response.send_message(":x: You have already voted.", ephemeral=True)
