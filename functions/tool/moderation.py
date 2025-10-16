@@ -1,5 +1,4 @@
 from asyncio import sleep
-from math import ceil
 from typing import TYPE_CHECKING, Optional
 
 from discord import (ButtonStyle, Embed, Interaction, Member, Message,
@@ -12,8 +11,9 @@ if TYPE_CHECKING:
 
 
 class VotekickView(View):
-    def __init__(self, required_votes: int, author: Member, target: Member):
+    def __init__(self, bot: "UiPy", required_votes: int, author: Member, target: Member):
         super().__init__(timeout=60.0)
+        self.bot = bot
         self.required_votes = required_votes
         self.author = author
         self.target = target
@@ -21,11 +21,17 @@ class VotekickView(View):
         self.no_votes = set()
         self.message: Optional[Message] = None
 
+    def has_voted(self, user_id: int) -> bool:
+        return user_id in self.yes_votes or user_id in self.no_votes
+
+    def disable_all_buttons(self):
+        for item in self.children:
+            if isinstance(item, Button):
+                item.disabled = True
+
     async def on_timeout(self):
         if self.message:
-            for item in self.children:
-                if isinstance(item, Button):
-                    item.disabled = True
+            self.disable_all_buttons()
             
             embed = self.message.embeds[0]
             embed.title = "Votekick Timed Out"
@@ -41,7 +47,7 @@ class VotekickView(View):
 
     @button(label="Yes", style=ButtonStyle.green)
     async def yes_button(self, interaction: Interaction, button: Button):
-        if interaction.user.id in self.yes_votes or interaction.user.id in self.no_votes:
+        if self.has_voted(interaction.user.id):
             await interaction.response.send_message(":x: You have already voted.", ephemeral=True)
             return
 
@@ -51,9 +57,7 @@ class VotekickView(View):
         if len(self.yes_votes) >= self.required_votes:
             self.stop()
             if self.message:
-                for item in self.children:
-                    if isinstance(item, Button):
-                        item.disabled = True
+                self.disable_all_buttons()
                 
                 embed = self.message.embeds[0]
                 embed.title = "Votekick Successful"
@@ -63,20 +67,23 @@ class VotekickView(View):
 
             if self.target.voice and self.target.voice.channel:
                 original_channel = self.target.voice.channel
-                await self.target.move_to(None, reason="Votekick successful.")
+                try:
+                    await self.target.move_to(None, reason="Votekick successful.")
+                except Exception:
+                    pass
                 
                 overwrite = PermissionOverwrite()
                 overwrite.connect = False
                 await original_channel.set_permissions(self.target, overwrite=overwrite)
                 
-                await sleep(60)
-                
-                await original_channel.set_permissions(self.target, overwrite=None)
+                cog = self.bot.get_cog("ModerationCog")
+                if isinstance(cog, ModerationCog):
+                    self.bot.loop.create_task(cog.unban_after_delay(self.target, original_channel, 60))
 
 
     @button(label="No", style=ButtonStyle.red)
     async def no_button(self, interaction: Interaction, button: Button):
-        if interaction.user.id in self.yes_votes or interaction.user.id in self.no_votes:
+        if self.has_voted(interaction.user.id):
             await interaction.response.send_message(":x: You have already voted.", ephemeral=True)
             return
 
@@ -89,6 +96,10 @@ class ModerationCog(commands.Cog):
     def __init__(self, bot: "UiPy"):
         self.bot = bot
         self.votekicks = {}
+
+    async def unban_after_delay(self, member: Member, channel, delay: int):
+        await sleep(delay)
+        await channel.set_permissions(member, overwrite=None)
 
     @app_commands.command(name="votekick", description="Start a vote to kick a user from the current voice channel.")
     async def votekick(self, interaction: Interaction, member: Member):
@@ -122,8 +133,8 @@ class ModerationCog(commands.Cog):
             return
 
         voice_channel = author.voice.channel
-        members_in_vc = [m for m in voice_channel.members if not m.bot]
-        required_votes = ceil(len(members_in_vc) * 2 / 3)
+        member_count = sum(1 for m in voice_channel.members if not m.bot and m.id != member.id)
+        required_votes = (member_count * 2 + 2) // 3
 
         embed = Embed(
             title=f"Votekick for {member.display_name}",
@@ -134,7 +145,7 @@ class ModerationCog(commands.Cog):
         embed.add_field(name="Votes", value=":heavy_check_mark: Yes: 0\n:x: No: 0", inline=True)
         embed.set_footer(text="The vote will end in 60 seconds.")
 
-        view = VotekickView(required_votes, author, member)
+        view = VotekickView(self.bot, required_votes, author, member)
         
         await interaction.response.send_message(embed=embed, view=view)
         message = await interaction.original_response()
