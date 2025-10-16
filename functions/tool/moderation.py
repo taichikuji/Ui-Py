@@ -131,7 +131,7 @@ class ModerationCog(commands.Cog):
             color=self.bot.color
         )
         embed.add_field(name="Required Votes", value=str(required_votes), inline=True)
-        embed.add_field(name="Votes", value=":heavy_check_mark: Yes: 0\n:x: No: 0", inline=True)
+        embed.add_field(name="Votes", value="Yes: 0\nNo: 0", inline=True)
         embed.set_footer(text="The vote will end in 60 seconds.")
 
         view = VotekickView(required_votes, author, member)
