@@ -29,20 +29,20 @@ class VotekickView(View):
             
             embed = self.message.embeds[0]
             embed.title = "Votekick Timed Out"
-            embed.description = f"The votekick against {self.target.mention} timed out."
-            embed.color = 0xff0000  # Red
+            embed.description = f":hourglass: The votekick against {self.target.mention} timed out."
+            embed.color = 0xff0000 # Red
             await self.message.edit(embed=embed, view=self)
 
     async def update_embed(self, interaction: Interaction):
         if self.message:
             embed = self.message.embeds[0]
-            embed.set_field_at(1, name="Votes", value=f"Yes: {len(self.yes_votes)}\nNo: {len(self.no_votes)}", inline=True)
+            embed.set_field_at(1, name="Votes", value=f":heavy_check_mark: Yes: {len(self.yes_votes)}\n:x: No: {len(self.no_votes)}", inline=True)
             await interaction.response.edit_message(embed=embed, view=self)
 
-    @button(label="Yes", style=ButtonStyle.green)
+    @button(emoji=":heavy_check_mark:", style=ButtonStyle.success)
     async def yes_button(self, interaction: Interaction, button: Button):
         if interaction.user.id in self.yes_votes or interaction.user.id in self.no_votes:
-            await interaction.response.send_message("You have already voted.", ephemeral=True)
+            await interaction.response.send_message(":x: You have already voted.", ephemeral=True)
             return
 
         self.yes_votes.add(interaction.user.id)
@@ -57,7 +57,7 @@ class VotekickView(View):
                 
                 embed = self.message.embeds[0]
                 embed.title = "Votekick Successful"
-                embed.description = f":information_source: {self.target.mention} has been kicked from the voice channel."
+                embed.description = f":heavy_check_mark: {self.target.mention} has been kicked from the voice channel."
                 embed.color = 0x00ff00 # Green
                 await self.message.edit(embed=embed, view=self)
 
@@ -74,10 +74,10 @@ class VotekickView(View):
                 await original_channel.set_permissions(self.target, overwrite=None)
 
 
-    @button(label="No", style=ButtonStyle.red)
+    @button(emoji=":x:", style=ButtonStyle.danger)
     async def no_button(self, interaction: Interaction, button: Button):
         if interaction.user.id in self.yes_votes or interaction.user.id in self.no_votes:
-            await interaction.response.send_message("You have already voted.", ephemeral=True)
+            await interaction.response.send_message(":x: You have already voted.", ephemeral=True)
             return
 
         self.no_votes.add(interaction.user.id)
@@ -131,7 +131,7 @@ class ModerationCog(commands.Cog):
             color=self.bot.color
         )
         embed.add_field(name="Required Votes", value=str(required_votes), inline=True)
-        embed.add_field(name="Votes", value="Yes: 0\nNo: 0", inline=True)
+        embed.add_field(name="Votes", value=":heavy_check_mark: Yes: 0\n:x: No: 0", inline=True)
         embed.set_footer(text="The vote will end in 60 seconds.")
 
         view = VotekickView(required_votes, author, member)
