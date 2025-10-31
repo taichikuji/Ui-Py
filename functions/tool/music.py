@@ -152,6 +152,23 @@ class MusicCog(commands.Cog):
             self.currently_playing.pop(guild_id, None)
             self.bot.loop.create_task(self._disconnect_and_cleanup(guild_id))
 
+    @commands.Cog.listener()
+    async def on_voice_state_update(self, member: Member, before: VoiceState, after: VoiceState):
+        if member.bot:
+            return
+
+        guild_id = member.guild.id
+        if guild_id not in self.voice_clients:
+            return
+
+        vc = self.voice_clients[guild_id]
+        if not vc.is_connected() or not vc.channel:
+            return
+
+        if before.channel == vc.channel and after.channel != vc.channel:
+            if len(vc.channel.members) == 1 and vc.channel.members[0] == self.bot.user:
+                await self._disconnect_and_cleanup(guild_id)
+
     @app_commands.command(
         name="stop",
         description="Stop the currently playing music and disconnect."
