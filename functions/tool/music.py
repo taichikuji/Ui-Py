@@ -68,6 +68,9 @@ class MusicCog(commands.Cog):
                 return
         else:
             vc = self.voice_clients[guild_id]
+            if vc.channel != user.voice.channel:
+                await interaction.followup.send(":x: I am already playing music in another voice channel.", ephemeral=True)
+                return
 
         with YoutubeDL(self.ydl_opts) as ydl:
             try:
