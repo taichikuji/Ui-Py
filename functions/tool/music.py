@@ -88,7 +88,7 @@ class MusicCog(commands.Cog):
                 return
 
         channel = interaction.channel
-        if not isinstance(channel, TextChannel):
+        if not isinstance(channel, (TextChannel, VoiceChannel)):
             await interaction.followup.send(":x: This command must be used in a text channel.", ephemeral=True)
             return
 
