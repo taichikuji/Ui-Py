@@ -4,7 +4,7 @@ from random import shuffle
 from typing import TYPE_CHECKING
 
 from discord import (Embed, FFmpegPCMAudio, Interaction, Member, TextChannel,
-                     VoiceClient, app_commands)
+                     VoiceChannel, VoiceClient, app_commands)
 from discord.ext import commands
 from yt_dlp import YoutubeDL
 
