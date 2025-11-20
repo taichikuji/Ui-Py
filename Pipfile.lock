@@ -1120,12 +1120,12 @@
         },
         "pyupgrade": {
             "hashes": [
-                "sha256:436fea5d40cb6adbd2f5102e9be1ec7031b807a03368c9f591a34f51584a7a25",
-                "sha256:c716c476b0fd58ee8e3fe2358b1fdc319a65fcb8fed765e2d6af9f6eedc3c180"
+                "sha256:1a361bea39deda78d1460f65d9dd548d3a36ff8171d2482298539b9dc11c9c06",
+                "sha256:2ac7b95cbd176475041e4dfe8ef81298bd4654a244f957167bd68af37d52be9f"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.10'",
-            "version": "==3.21.1"
+            "version": "==3.21.2"
         },
         "tokenize-rt": {
             "hashes": [
