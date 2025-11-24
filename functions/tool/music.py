@@ -72,23 +72,22 @@ class MusicCog(commands.Cog):
                 await interaction.followup.send(":x: I am already playing music in another voice channel.", ephemeral=True)
                 return
 
-        with YoutubeDL(self.ydl_opts) as ydl:
-            try:
-                if info := await get_running_loop().run_in_executor(
-                    None, lambda: ydl.extract_info(query, download=False)
-                ):
-                    if "entries" in info:
-                        info = info["entries"][0]
-                    if "url" not in info:
-                        raise ValueError("No URL found in the extracted information.")
-                    url = info["url"]
-                    title = info.get("title", "Unknown Title")
-                    duration = info.get("duration_string", "N/A")
-                else:
-                    raise ValueError("Failed to extract information")
-            except Exception as e:
-                await interaction.followup.send(f":x: Failed to retrieve video. Error: {e}", ephemeral=True)
-                return
+        try:
+            if info := await get_running_loop().run_in_executor(
+                None, self._search_source, query
+            ):
+                if "entries" in info:
+                    info = info["entries"][0]
+                if "url" not in info:
+                    raise ValueError("No URL found in the extracted information.")
+                url = info["url"]
+                title = info.get("title", "Unknown Title")
+                duration = info.get("duration_string", "N/A")
+            else:
+                raise ValueError("Failed to extract information")
+        except Exception as e:
+            await interaction.followup.send(f":x: Failed to retrieve video. Error: {e}", ephemeral=True)
+            return
 
         channel = interaction.channel
         if not isinstance(channel, (TextChannel, VoiceChannel)):
@@ -106,6 +105,10 @@ class MusicCog(commands.Cog):
         else:
             self.queues[guild_id].append((url, title, duration))
             await interaction.followup.send(f":ballot_box_with_check: Added to queue: **{title}** [{duration}]")
+
+    def _search_source(self, query: str):
+        with YoutubeDL(self.ydl_opts) as ydl:
+            return ydl.extract_info(query, download=False)
 
     def _play_song(self, guild_id: int, url: str, title: str, duration: str):
         self.currently_playing[guild_id] = (url, title, duration)
