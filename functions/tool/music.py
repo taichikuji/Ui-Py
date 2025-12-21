@@ -211,7 +211,7 @@ class MusicCog(commands.Cog):
             )
 
     async def _play_playlist(
-        self, guild_id: int, entries: list, channel: TextChannel | VoiceChannel
+        self, guild_id: int, entries: list[dict], channel: TextChannel | VoiceChannel
     ):
         if not entries:
             return
@@ -234,8 +234,11 @@ class MusicCog(commands.Cog):
             await self._add_playlist_to_queue(guild_id, remaining_entries, channel)
 
     async def _add_playlist_to_queue(
-        self, guild_id: int, entries: list, channel: TextChannel | VoiceChannel
+        self, guild_id: int, entries: list[dict], channel: TextChannel | VoiceChannel
     ):
+        if guild_id not in self.queues:
+            self.queues[guild_id] = []
+
         added = 0
         failed = 0
 
@@ -246,9 +249,8 @@ class MusicCog(commands.Cog):
                 )
                 if song_info:
                     url, title, duration = song_info
-                    if guild_id in self.queues:
-                        self.queues[guild_id].append((url, title, duration))
-                        added += 1
+                    self.queues[guild_id].append((url, title, duration))
+                    added += 1
             except Exception:
                 failed += 1
 
@@ -261,10 +263,17 @@ class MusicCog(commands.Cog):
             await channel.send(f":x: Failed to add songs to queue ({failed} failed).")
 
     def _extract_song(self, entry: dict):
+        if (
+            not entry.get("id")
+            and not entry.get("url")
+            and not entry.get("webpage_url")
+        ):
+            return None
+
         url = (
             entry.get("url")
             or entry.get("webpage_url")
-            or f"https://www.youtube.com/watch?v={entry.get('id')}"
+            or f"https://www.youtube.com/watch?v={entry['id']}"
         )
 
         if entry.get("url") and "manifest" not in entry.get("url", ""):
