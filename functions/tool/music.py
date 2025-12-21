@@ -3,8 +3,17 @@ from gc import collect
 from random import shuffle
 from typing import TYPE_CHECKING
 
-from discord import (Embed, FFmpegPCMAudio, Interaction, Member, TextChannel,
-                     VoiceChannel, VoiceClient, app_commands, VoiceState)
+from discord import (
+    Embed,
+    FFmpegPCMAudio,
+    Interaction,
+    Member,
+    TextChannel,
+    VoiceChannel,
+    VoiceClient,
+    VoiceState,
+    app_commands,
+)
 from discord.ext import commands
 from yt_dlp import YoutubeDL
 
@@ -14,12 +23,13 @@ if TYPE_CHECKING:
 
 class MusicCog(commands.Cog):
     """Cog for music playback and queue management in voice channels."""
+
     def __init__(self, bot: "UiPy"):
         self.bot = bot
         self.voice_clients: dict[int, VoiceClient] = {}
         self.queues: dict[int, list[tuple[str, str, str]]] = {}
         self.currently_playing: dict[int, tuple[str, str, str]] = {}
-        self.command_channels: dict[int, TextChannel] = {}
+        self.command_channels: dict[int, TextChannel | VoiceChannel] = {}
         self.ydl_opts = {
             "format": "bestaudio/best",
             "default_search": "ytsearch",
@@ -28,7 +38,10 @@ class MusicCog(commands.Cog):
             "extract_flat": False,
         }
         self.ffmpeg_opts = {
-            "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -analyzeduration 10M -probesize 10M",
+            "before_options": (
+                "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 "
+                "-analyzeduration 10M -probesize 10M"
+            ),
             "options": "-vn",
         }
 
@@ -38,44 +51,65 @@ class MusicCog(commands.Cog):
     )
     async def play(self, interaction: Interaction, query: str):
         if not query:
-            await interaction.response.send_message(":x: You must provide a search term or URL.", ephemeral=True)
+            await interaction.response.send_message(
+                ":x: You must provide a search term or URL.", ephemeral=True
+            )
             return
 
         guild_id = interaction.guild_id
         if guild_id is None:
-            await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
+            await interaction.response.send_message(
+                ":x: Could not determine guild ID.", ephemeral=True
+            )
             return
 
         user = interaction.user
         if not isinstance(user, Member):
-            await interaction.response.send_message(":x: This command can only be used in a server.", ephemeral=True)
+            await interaction.response.send_message(
+                ":x: This command can only be used in a server.", ephemeral=True
+            )
             return
 
         if not user.voice or not user.voice.channel:
-            await interaction.response.send_message(":x: You need to be in a voice channel to use this command.", ephemeral=True)
+            await interaction.response.send_message(
+                ":x: You need to be in a voice channel to use this command.",
+                ephemeral=True,
+            )
             return
 
         await interaction.response.defer()
-        
+
         voice_channel = user.voice.channel
         vc: VoiceClient
-        if guild_id not in self.voice_clients or not self.voice_clients[guild_id].is_connected():
+        if (
+            guild_id not in self.voice_clients
+            or not self.voice_clients[guild_id].is_connected()
+        ):
             try:
                 vc = await voice_channel.connect(self_deaf=True)
                 self.voice_clients[guild_id] = vc
             except Exception as e:
-                await interaction.followup.send(f":x: Failed to connect to the voice channel. Error: {e}", ephemeral=True)
+                await interaction.followup.send(
+                    f":x: Failed to connect to the voice channel. Error: {e}",
+                    ephemeral=True,
+                )
                 return
         else:
             vc = self.voice_clients[guild_id]
             if vc.channel and vc.channel != user.voice.channel:
-                await interaction.followup.send(":x: I am already playing music in another voice channel.", ephemeral=True)
+                await interaction.followup.send(
+                    ":x: I am already playing music in another voice channel.",
+                    ephemeral=True,
+                )
                 return
 
         try:
             if info := await get_running_loop().run_in_executor(
                 None, self._search_source, query
             ):
+                if "_type" in info and info["_type"] == "playlist":
+                    await self._handle_playlist(interaction, guild_id, vc, info)
+                    return
                 if "entries" in info:
                     info = info["entries"][0]
                 if "url" not in info:
@@ -86,12 +120,16 @@ class MusicCog(commands.Cog):
             else:
                 raise ValueError("Failed to extract information")
         except Exception as e:
-            await interaction.followup.send(f":x: Failed to retrieve video. Error: {e}", ephemeral=True)
+            await interaction.followup.send(
+                f":x: Failed to retrieve video. Error: {e}", ephemeral=True
+            )
             return
 
         channel = interaction.channel
         if not isinstance(channel, (TextChannel, VoiceChannel)):
-            await interaction.followup.send(":x: This command must be used in a text channel.", ephemeral=True)
+            await interaction.followup.send(
+                ":x: This command must be used in a text channel.", ephemeral=True
+            )
             return
 
         self.command_channels[guild_id] = channel
@@ -101,20 +139,158 @@ class MusicCog(commands.Cog):
 
         if not vc.is_playing() and not vc.is_paused() and not self.queues[guild_id]:
             self._play_song(guild_id, url, title, duration)
-            await interaction.followup.send(f":notes: Now playing: **{title}** [{duration}]")
+            await interaction.followup.send(
+                f":notes: Now playing: **{title}** [{duration}]"
+            )
         else:
             self.queues[guild_id].append((url, title, duration))
-            await interaction.followup.send(f":ballot_box_with_check: Added to queue: **{title}** [{duration}]")
+            await interaction.followup.send(
+                f":ballot_box_with_check: Added to queue: **{title}** [{duration}]"
+            )
 
     def _search_source(self, query: str):
-        with YoutubeDL(self.ydl_opts) as ydl:
+        opts = self.ydl_opts.copy()
+        if "list=" in query or "/playlist" in query:
+            opts["noplaylist"] = False
+            opts["extract_flat"] = "in_playlist"
+        with YoutubeDL(opts) as ydl:
             return ydl.extract_info(query, download=False)
+
+    async def _handle_playlist(
+        self,
+        interaction: Interaction,
+        guild_id: int,
+        vc: VoiceClient,
+        playlist_info: dict,
+    ):
+        if "entries" not in playlist_info or not playlist_info["entries"]:
+            await interaction.followup.send(
+                ":x: The playlist is empty or could not be processed."
+            )
+            return
+
+        playlist_title = playlist_info.get("title", "Unknown Playlist")
+        entries = [e for e in playlist_info["entries"] if e is not None]
+        total_count = len(entries)
+
+        if total_count == 0:
+            await interaction.followup.send(
+                ":x: No valid entries found in the playlist."
+            )
+            return
+
+        channel = interaction.channel
+        if not isinstance(channel, (TextChannel, VoiceChannel)):
+            await interaction.followup.send(
+                ":x: This command must be used in a text channel.", ephemeral=True
+            )
+            return
+
+        self.command_channels[guild_id] = channel
+
+        if guild_id not in self.queues:
+            self.queues[guild_id] = []
+
+        is_playing = vc.is_playing() or vc.is_paused() or self.queues[guild_id]
+
+        if is_playing:
+            await interaction.followup.send(
+                f":hourglass_flowing_sand: Adding **{total_count}** songs "
+                f"from playlist **{playlist_title}** to queue..."
+            )
+            get_running_loop().create_task(
+                self._add_playlist_to_queue(guild_id, entries, channel)
+            )
+        else:
+            await interaction.followup.send(
+                f":hourglass_flowing_sand: Loading first song "
+                f"from playlist **{playlist_title}** ({total_count} total)..."
+            )
+            get_running_loop().create_task(
+                self._play_playlist(guild_id, entries, channel)
+            )
+
+    async def _play_playlist(
+        self, guild_id: int, entries: list, channel: TextChannel | VoiceChannel
+    ):
+        if not entries:
+            return
+
+        first_entry = entries[0]
+        remaining_entries = entries[1:]
+
+        try:
+            song_info = await get_running_loop().run_in_executor(
+                None, self._extract_song, first_entry
+            )
+            if song_info:
+                url, title, duration = song_info
+                self._play_song(guild_id, url, title, duration)
+                await channel.send(f":notes: Now playing: **{title}** [{duration}]")
+        except Exception as e:
+            await channel.send(f":x: Failed to play first song: {e}")
+
+        if remaining_entries:
+            await self._add_playlist_to_queue(guild_id, remaining_entries, channel)
+
+    async def _add_playlist_to_queue(
+        self, guild_id: int, entries: list, channel: TextChannel | VoiceChannel
+    ):
+        added = 0
+        failed = 0
+
+        for entry in entries:
+            try:
+                song_info = await get_running_loop().run_in_executor(
+                    None, self._extract_song, entry
+                )
+                if song_info:
+                    url, title, duration = song_info
+                    if guild_id in self.queues:
+                        self.queues[guild_id].append((url, title, duration))
+                        added += 1
+            except Exception:
+                failed += 1
+
+        if added > 0:
+            failed_msg = f" ({failed} failed)" if failed > 0 else ""
+            await channel.send(
+                f":white_check_mark: Added **{added}** songs to queue{failed_msg}."
+            )
+        elif failed > 0:
+            await channel.send(f":x: Failed to add songs to queue ({failed} failed).")
+
+    def _extract_song(self, entry: dict):
+        url = (
+            entry.get("url")
+            or entry.get("webpage_url")
+            or f"https://www.youtube.com/watch?v={entry.get('id')}"
+        )
+
+        if entry.get("url") and "manifest" not in entry.get("url", ""):
+            title = entry.get("title", "Unknown Title")
+            duration = entry.get("duration_string", "N/A")
+            return (entry["url"], title, duration)
+
+        with YoutubeDL(self.ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            if not info or "url" not in info:
+                return None
+            return (
+                info["url"],
+                info.get("title", "Unknown Title"),
+                info.get("duration_string", "N/A"),
+            )
 
     def _play_song(self, guild_id: int, url: str, title: str, duration: str):
         self.currently_playing[guild_id] = (url, title, duration)
         vc: VoiceClient = self.voice_clients[guild_id]
         vc.play(
-            FFmpegPCMAudio(url, before_options=self.ffmpeg_opts["before_options"], options=self.ffmpeg_opts["options"]),
+            FFmpegPCMAudio(
+                url,
+                before_options=self.ffmpeg_opts["before_options"],
+                options=self.ffmpeg_opts["options"],
+            ),
             after=lambda e: self._play_next(guild_id, e),
         )
 
@@ -126,7 +302,10 @@ class MusicCog(commands.Cog):
                     vc.stop()
                     await vc.disconnect()
                 except Exception as e:
-                    print(f"[ERROR] MusicCog: Error during disconnect for guild {guild_id}: {e}")
+                    print(
+                        f"[ERROR] MusicCog: Error during disconnect "
+                        f"for guild {guild_id}: {e}"
+                    )
         try:
             self.queues.pop(guild_id, None)
             self.command_channels.pop(guild_id, None)
@@ -141,13 +320,18 @@ class MusicCog(commands.Cog):
         if error:
             print(f"[ERROR] MusicCog: Player error for guild {guild_id}: {error}")
 
-        if guild_id not in self.voice_clients or not self.voice_clients[guild_id].is_connected():
+        if (
+            guild_id not in self.voice_clients
+            or not self.voice_clients[guild_id].is_connected()
+        ):
             return
-        
+
         if guild_id in self.queues and self.queues[guild_id]:
             url, title, duration = self.queues[guild_id].pop(0)
             self._play_song(guild_id, url, title, duration)
-            if guild_id in self.command_channels and (channel := self.command_channels[guild_id]):
+            if guild_id in self.command_channels and (
+                channel := self.command_channels[guild_id]
+            ):
                 coro = channel.send(f":notes: Now playing: **{title}** [{duration}]")
                 future = run_coroutine_threadsafe(coro, self.bot.loop)
                 try:
@@ -159,7 +343,9 @@ class MusicCog(commands.Cog):
             self.bot.loop.create_task(self._disconnect_and_cleanup(guild_id))
 
     @commands.Cog.listener()
-    async def on_voice_state_update(self, member: Member, before: VoiceState, after: VoiceState):
+    async def on_voice_state_update(
+        self, member: Member, before: VoiceState, after: VoiceState
+    ):
         if member.bot:
             return
 
@@ -176,28 +362,34 @@ class MusicCog(commands.Cog):
                 await self._disconnect_and_cleanup(guild_id)
 
     @app_commands.command(
-        name="stop",
-        description="Stop the currently playing music and disconnect."
+        name="stop", description="Stop the currently playing music and disconnect."
     )
     async def stop(self, interaction: Interaction):
         guild_id = interaction.guild_id
         if guild_id is None:
-            await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
+            await interaction.response.send_message(
+                ":x: Could not determine guild ID.", ephemeral=True
+            )
             return
         if guild_id in self.voice_clients:
             await self._disconnect_and_cleanup(guild_id)
-            await interaction.response.send_message(":stop_button: Stopped and disconnected.")
+            await interaction.response.send_message(
+                ":stop_button: Stopped and disconnected."
+            )
         else:
-            await interaction.response.send_message(":x: The bot is not connected to a voice channel.", ephemeral=True)
+            await interaction.response.send_message(
+                ":x: The bot is not connected to a voice channel.", ephemeral=True
+            )
 
     @app_commands.command(
-        name="pause",
-        description="Pause the currently playing music."
+        name="pause", description="Pause the currently playing music."
     )
     async def pause(self, interaction: Interaction):
         guild_id = interaction.guild_id
         if guild_id is None:
-            await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
+            await interaction.response.send_message(
+                ":x: Could not determine guild ID.", ephemeral=True
+            )
             return
         if guild_id in self.voice_clients:
             vc: VoiceClient = self.voice_clients[guild_id]
@@ -205,37 +397,51 @@ class MusicCog(commands.Cog):
                 vc.pause()
                 await interaction.response.send_message(":pause_button: Music paused.")
             else:
-                await interaction.response.send_message(":x: No music is currently playing.", ephemeral=True)
+                await interaction.response.send_message(
+                    ":x: No music is currently playing.", ephemeral=True
+                )
         else:
-            await interaction.response.send_message(":x: The bot is not connected to a voice channel.", ephemeral=True)
+            await interaction.response.send_message(
+                ":x: The bot is not connected to a voice channel.", ephemeral=True
+            )
 
-    @app_commands.command(
-        name="resume",
-        description="Resume the paused music."
-    )
+    @app_commands.command(name="resume", description="Resume the paused music.")
     async def resume(self, interaction: Interaction):
         guild_id = interaction.guild_id
         if guild_id is None:
-            await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
+            await interaction.response.send_message(
+                ":x: Could not determine guild ID.", ephemeral=True
+            )
             return
         if guild_id in self.voice_clients:
             vc: VoiceClient = self.voice_clients[guild_id]
             if vc.is_paused():
                 vc.resume()
-                await interaction.response.send_message(":arrow_forward: Music resumed.")
+                await interaction.response.send_message(
+                    ":arrow_forward: Music resumed."
+                )
             else:
-                await interaction.response.send_message(":x: The music is not paused.", ephemeral=True)
+                await interaction.response.send_message(
+                    ":x: The music is not paused.", ephemeral=True
+                )
         else:
-            await interaction.response.send_message(":x: The bot is not connected to a voice channel.", ephemeral=True)
+            await interaction.response.send_message(
+                ":x: The bot is not connected to a voice channel.", ephemeral=True
+            )
 
     @app_commands.command(
         name="queue",
-        description="Show the current music queue. Displays up to 10 items and indicates if there are more."
+        description=(
+            "Show the current music queue. "
+            "Displays up to 10 items and indicates if there are more."
+        ),
     )
     async def queue(self, interaction: Interaction):
         guild_id = interaction.guild_id
         if guild_id is None:
-            await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
+            await interaction.response.send_message(
+                ":x: Could not determine guild ID.", ephemeral=True
+            )
             return
 
         queue_items = []
@@ -246,12 +452,14 @@ class MusicCog(commands.Cog):
         if guild_id in self.queues and self.queues[guild_id]:
             for i, (_, title, duration) in enumerate(self.queues[guild_id][:10]):
                 queue_items.append(f"{i+1}. {title} [{duration}]")
-            
+
             if len(self.queues[guild_id]) > 10:
                 queue_items.append(f"\n...and {len(self.queues[guild_id]) - 10} more.")
 
         if not queue_items:
-            await interaction.response.send_message(":x: The music queue is currently empty.")
+            await interaction.response.send_message(
+                ":x: The music queue is currently empty."
+            )
         else:
             queue_list = "\n".join(queue_items)
             em = {
@@ -261,14 +469,13 @@ class MusicCog(commands.Cog):
             }
             await interaction.response.send_message(embed=Embed.from_dict(em))
 
-    @app_commands.command(
-        name="skip",
-        description="Skip the current song."
-    )
+    @app_commands.command(name="skip", description="Skip the current song.")
     async def skip(self, interaction: Interaction):
         guild_id = interaction.guild_id
         if guild_id is None:
-            await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
+            await interaction.response.send_message(
+                ":x: Could not determine guild ID.", ephemeral=True
+            )
             return
         if guild_id in self.voice_clients:
             vc: VoiceClient = self.voice_clients[guild_id]
@@ -276,24 +483,34 @@ class MusicCog(commands.Cog):
                 vc.stop()
                 await interaction.response.send_message(":track_next: Skipped.")
             else:
-                await interaction.response.send_message(":x: No music is currently playing.", ephemeral=True)
+                await interaction.response.send_message(
+                    ":x: No music is currently playing.", ephemeral=True
+                )
         else:
-            await interaction.response.send_message(":x: The bot is not connected to a voice channel.", ephemeral=True)
+            await interaction.response.send_message(
+                ":x: The bot is not connected to a voice channel.", ephemeral=True
+            )
 
     @app_commands.command(
-        name="shuffle",
-        description="Shuffle the current music queue."
+        name="shuffle", description="Shuffle the current music queue."
     )
     async def shuffle(self, interaction: Interaction):
         guild_id = interaction.guild_id
         if guild_id is None:
-            await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
+            await interaction.response.send_message(
+                ":x: Could not determine guild ID.", ephemeral=True
+            )
             return
         if guild_id in self.queues and self.queues[guild_id]:
             shuffle(self.queues[guild_id])
-            await interaction.response.send_message(":twisted_rightwards_arrows: Queue shuffled.")
+            await interaction.response.send_message(
+                ":twisted_rightwards_arrows: Queue shuffled."
+            )
         else:
-            await interaction.response.send_message(":x: The music queue is currently empty.", ephemeral=True)
+            await interaction.response.send_message(
+                ":x: The music queue is currently empty.", ephemeral=True
+            )
+
 
 async def setup(bot: "UiPy"):
     await bot.add_cog(MusicCog(bot))
