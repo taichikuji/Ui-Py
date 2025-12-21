@@ -128,7 +128,7 @@ class MusicCog(commands.Cog):
         channel = interaction.channel
         if not isinstance(channel, (TextChannel, VoiceChannel)):
             await interaction.followup.send(
-                ":x: This command must be used in a text channel.", ephemeral=True
+                ":x: This command must be used in a server channel.", ephemeral=True
             )
             return
 
@@ -182,7 +182,7 @@ class MusicCog(commands.Cog):
         channel = interaction.channel
         if not isinstance(channel, (TextChannel, VoiceChannel)):
             await interaction.followup.send(
-                ":x: This command must be used in a text channel.", ephemeral=True
+                ":x: This command must be used in a server channel.", ephemeral=True
             )
             return
 
@@ -263,18 +263,17 @@ class MusicCog(commands.Cog):
             await channel.send(f":x: Failed to add songs to queue ({failed} failed).")
 
     def _extract_song(self, entry: dict):
-        if (
-            not entry.get("id")
-            and not entry.get("url")
-            and not entry.get("webpage_url")
-        ):
+        if "id" not in entry and "url" not in entry and "webpage_url" not in entry:
             return None
 
         url = (
             entry.get("url")
             or entry.get("webpage_url")
-            or f"https://www.youtube.com/watch?v={entry['id']}"
+            or f"https://www.youtube.com/watch?v={entry.get('id', '')}"
         )
+
+        if not url or url.endswith("None") or url.endswith(""):
+            return None
 
         if entry.get("url") and "manifest" not in entry.get("url", ""):
             title = entry.get("title", "Unknown Title")
