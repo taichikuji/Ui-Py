@@ -58,11 +58,15 @@ if [[ "$1" == "--reset" ]]; then
     exit 0
 fi
 
-# Clean old version
-if docker-compose down; then
-    log "$SUCCESS" "Container removed"
+# Clean old version, unless --soft is specified
+if [[ "$1" != "--soft" ]]; then
+    if docker-compose down; then
+        log "$SUCCESS" "Container removed"
+    else
+        log "$ERROR" "Failed to remove containers"; exit 1
+    fi
 else
-    log "$ERROR" "Failed to remove containers"; exit 1
+    log "$SUCCESS" "Skipping container removal (soft update)"
 fi
 
 # Pull latest version
