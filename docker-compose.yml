@@ -22,7 +22,7 @@ services:
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - .:/workspace:z
+      - .:/workspace:ro,z
     environment:
       - CRON_SCHEDULE=${CRON_SCHEDULE:-0 0 * * *}
 
