@@ -12,7 +12,7 @@ log() {
 check_updates() {
     log "$INFO" "Checking for updates..."
     
-    # Ensure we are in the workspace
+    # updater.sh needs to be executed from /workspace, otherwise it will not work.
     if [ ! -d ".git" ]; then
         log "$ERROR" "Not a git repository. Is the volume mounted?"
         exit 1

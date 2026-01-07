@@ -1,17 +1,18 @@
 #!/bin/bash
 
-# Default to daily at midnight if not set
+# Defaults to daily at 00:00
 CRON_SCHEDULE=${CRON_SCHEDULE:-"0 0 * * *"}
 
-# Fix git safe directory issue
+# This is to fix the following fatal:
+# fatal: detected dubious ownership in repository at '/workspace'
 git config --global --add safe.directory /workspace
 
 echo "Setting up updater cron with schedule: $CRON_SCHEDULE"
 
-# Write to crontab
+# CRON_SCHEDULE written to crontab
 echo "$CRON_SCHEDULE /usr/local/bin/updater.sh >> /proc/1/fd/1 2>&1" | crontab -
 
-# Run immediately? The user didn't ask, but good practice. Checking updates on start.
+# Initiate first run, then hand over to cron
 /usr/local/bin/updater.sh
 
 echo "Starting crond..."
