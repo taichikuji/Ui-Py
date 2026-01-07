@@ -1,7 +1,7 @@
 services:
   discord:
-    build: ./
-    # image: ghcr.io/taichikuji/ui-py
+    # build: ./
+    image: ghcr.io/taichikuji/ui-py
     restart: on-failure:5
     container_name: ui
     environment:
@@ -9,21 +9,22 @@ services:
       - STEAM_TOKEN=${STEAM_TOKEN}
     volumes:
       - ui_db:/usr/src/app/data
+    # Label for updater to detect, something like this:
     # labels:
     #   - "com.centurylinklabs.watchtower.enable=true"
+    labels:
+      - "com.taichikuji.ui-py.enable=true"
 
-  # Uncomment the commented sections to enable watchtower for automatic updates with Ui-Py
-  # watchtower:
-  #   image: containrrr/watchtower
-  #   restart: unless-stopped
-  #   container_name: watchtower
-  #   volumes:
-  #     - /var/run/docker.sock:/var/run/docker.sock
-  #   environment:
-  #     - WATCHTOWER_SCHEDULE=0 0 0 * * *
-  #     - WATCHTOWER_CLEANUP=true
-  #     - WATCHTOWER_TIMEOUT=30s
-  #     - WATCHTOWER_LABEL_ENABLE=true
+
+  updater:
+    build: ./updater
+    container_name: ui-updater
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/workspace:ro,z
+    environment:
+      - CRON_SCHEDULE=${CRON_SCHEDULE:-0 0 * * *}
 
 volumes:
   ui_db:
