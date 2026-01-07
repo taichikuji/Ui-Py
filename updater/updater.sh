@@ -1,10 +1,5 @@
 #!/bin/bash
 
-# Configuration
-# This script dynamically discovers services using docker-compose.
-# No hardcoded service or container names are needed.
-
-# Colors
 SUCCESS='\e[39m\e[42m[SUCCESS]\e[49m \e[32m'
 ERROR='\e[39m\e[41m[ERROR]\e[49m \e[31m'
 INFO='\e[39m\e[44m[INFO]\e[49m \e[34m'
