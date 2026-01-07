@@ -9,6 +9,12 @@ services:
       - STEAM_TOKEN=${STEAM_TOKEN}
     volumes:
       - ui_db:/usr/src/app/data
+    # Label for updater to detect, something like this:
+    # labels:
+    #   - "com.centurylinklabs.watchtower.enable=true"
+    labels:
+      - "com.taichikuji.ui-py.enable=true"
+
 
   updater:
     build: ./updater
