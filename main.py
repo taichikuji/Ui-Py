@@ -67,4 +67,3 @@ class UiPy(commands.AutoShardedBot):
 if __name__ == "__main__":
     print("[INFO] Starting Ui-Py...")
     UiPy().run()
-# TEST_VERSION_UPDATE_MARKER_123

@@ -30,11 +30,23 @@ check_updates() {
         if git pull; then
             log "$SUCCESS" "Git pull successful."
             
-            log "$INFO" "Running init-docker.sh --soft..."
-            if bash init-docker.sh --soft; then
-                log "$SUCCESS" "Update process completed."
+            # Instead of using ./init-docker.sh, we replicate the necessary parts here
+            export COMPOSE_BAKE=true
+
+            cleanup_buildkit() {
+                if docker ps -a --filter "name=buildx_buildkit" --format "table {{.Names}}" | grep buildx_buildkit | xargs -r docker rm -f 2>/dev/null; then
+                    log "$SUCCESS" "BuildKit containers removed"
+                else
+                    log "$ERROR" "No BuildKit containers to remove"
+                fi
+            }
+
+            # Build and start new version
+            if docker-compose build --force-rm discord && docker-compose up -d discord; then
+                cleanup_buildkit
+                log "$SUCCESS" "Build and start successful"
             else
-                log "$ERROR" "init-docker.sh failed."
+                log "$ERROR" "Build/start failed"
             fi
         else
             log "$ERROR" "Git pull failed."
