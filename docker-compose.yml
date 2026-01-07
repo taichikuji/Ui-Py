@@ -9,22 +9,20 @@ services:
       - STEAM_TOKEN=${STEAM_TOKEN}
     volumes:
       - ui_db:/usr/src/app/data
-    # Label for updater to detect, something like this:
+    # Label for updater to detect the service to update
     # labels:
-    #   - "com.centurylinklabs.watchtower.enable=true"
-    labels:
-      - "com.taichikuji.ui-py.enable=true"
+    #   - "com.taichikuji.ui-py.enable=true"
 
-
-  updater:
-    build: ./updater
-    container_name: ui-updater
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - .:/workspace:ro,z
-    environment:
-      - CRON_SCHEDULE=${CRON_SCHEDULE:-0 0 * * *}
+  # Uncomment the following section to enable automatic updates on ui-py
+  # updater:
+  #   build: ./updater
+  #   container_name: ui-updater
+  #   restart: unless-stopped
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #     - .:/workspace:ro,z
+  #   environment:
+  #     - CRON_SCHEDULE=${CRON_SCHEDULE:-0 0 * * *}
 
 volumes:
   ui_db:

@@ -55,6 +55,11 @@ This image can even be used in your Kubernetes cluster!
 
 We don't have a Kubernetes deployment YAML at the moment, but one may be provided in the future.
 
+### Auto-Updater
+
+To enable automatic updates, uncomment the `updater` service and the `labels` section in `docker-compose.yml`.
+You can change the update frequency by modifying the `CRON_SCHEDULE` environment variable (default: `0 0 * * *` for daily checks).
+
 ## Contributing
 
 The project follows a modular architecture, making it easy to add new features. New functionality can be added by creating new Python files in the appropriate directories under `functions/`.
