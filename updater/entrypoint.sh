@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ ! -f "/.dockerenv" ]; then
+    echo "This script is intended to be run inside the Docker container only."
+    exit 1
+fi
+
 # Defaults to daily at 00:00
 CRON_SCHEDULE=${CRON_SCHEDULE:-"0 0 * * *"}
 
