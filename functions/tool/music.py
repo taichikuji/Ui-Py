@@ -121,9 +121,7 @@ class MusicCog(commands.Cog):
     async def _play_song(self, guild_id: int, webpage_url: str, stream_url: str | None, title: str, duration: str):
         if not stream_url:
             try:
-                info = await get_running_loop().run_in_executor(
-                    None, self._search_source, webpage_url
-                )
+                info = await get_running_loop().run_in_executor(None, self._search_source, webpage_url)
                 if "entries" in info:
                     info = info["entries"][0]
                 stream_url = info.get("url")
@@ -152,7 +150,7 @@ class MusicCog(commands.Cog):
             self.queues.pop(guild_id, None)
             self.command_channels.pop(guild_id, None)
             self.currently_playing.pop(guild_id, None)
-            collect()
+            await get_running_loop().run_in_executor(None, collect)
         except Exception as e:
             print(f"[ERROR] MusicCog: Error during cleanup for guild {guild_id}: {e}")
         finally:
@@ -166,15 +164,14 @@ class MusicCog(commands.Cog):
             return
         
         if guild_id in self.queues and self.queues[guild_id]:
-            url, title, duration = self.queues[guild_id].pop(0)
-            self._play_song(guild_id, url, title, duration)
+            webpage_url, title, duration = self.queues[guild_id].pop(0)
+            
+            coro = self._play_song(guild_id, webpage_url, None, title, duration)
+            self.bot.loop.create_task(coro)
+
             if guild_id in self.command_channels and (channel := self.command_channels[guild_id]):
-                coro = channel.send(f":notes: Now playing: **{title}** [{duration}]")
-                future = run_coroutine_threadsafe(coro, self.bot.loop)
-                try:
-                    future.result(timeout=5)
-                except Exception as e:
-                    print(f"[ERROR] MusicCog: Error sending 'Now playing' message: {e}")
+                msg_coro = channel.send(f":notes: Now playing: **{title}** [{duration}]")
+                self.bot.loop.create_task(msg_coro)
         else:
             self.currently_playing.pop(guild_id, None)
             self.bot.loop.create_task(self._disconnect_and_cleanup(guild_id))
