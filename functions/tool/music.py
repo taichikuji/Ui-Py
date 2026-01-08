@@ -82,11 +82,15 @@ class MusicCog(commands.Cog):
             ):
                 if "entries" in info:
                     info = info["entries"][0]
-                if "url" not in info:
-                    raise ValueError("No URL found in the extracted information.")
-                url = info["url"]
+                
+                webpage_url = info.get("webpage_url")
+                stream_url = info.get("url")
+                
                 title = info.get("title", "Unknown Title")
                 duration = info.get("duration_string", "N/A")
+
+                if not webpage_url:
+                    raise ValueError("No webpage URL found.")
             else:
                 raise ValueError("Failed to extract information")
         except Exception as e:
@@ -104,21 +108,34 @@ class MusicCog(commands.Cog):
             self.queues[guild_id] = []
 
         if not vc.is_playing() and not vc.is_paused() and not self.queues[guild_id]:
-            self._play_song(guild_id, url, title, duration)
+            await self._play_song(guild_id, webpage_url, stream_url, title, duration)
             await interaction.followup.send(f":notes: Now playing: **{title}** [{duration}]")
         else:
-            self.queues[guild_id].append((url, title, duration))
+            self.queues[guild_id].append((webpage_url, title, duration))
             await interaction.followup.send(f":ballot_box_with_check: Added to queue: **{title}** [{duration}]")
 
     def _search_source(self, query: str):
         with YoutubeDL(self.ydl_opts) as ydl:
             return ydl.extract_info(query, download=False)
 
-    def _play_song(self, guild_id: int, url: str, title: str, duration: str):
-        self.currently_playing[guild_id] = (url, title, duration)
+    async def _play_song(self, guild_id: int, webpage_url: str, stream_url: str | None, title: str, duration: str):
+        if not stream_url:
+            try:
+                info = await get_running_loop().run_in_executor(
+                    None, self._search_source, webpage_url
+                )
+                if "entries" in info:
+                    info = info["entries"][0]
+                stream_url = info.get("url")
+            except Exception as e:
+                print(f"[ERROR] Could not refresh URL for {title}: {e}")
+                self._play_next(guild_id)
+                return
+
+        self.currently_playing[guild_id] = (webpage_url, title, duration)
         vc: VoiceClient = self.voice_clients[guild_id]
         vc.play(
-            FFmpegPCMAudio(url, before_options=self.ffmpeg_opts["before_options"], options=self.ffmpeg_opts["options"]),
+            FFmpegPCMAudio(stream_url, before_options=self.ffmpeg_opts["before_options"], options=self.ffmpeg_opts["options"]),
             after=lambda e: self._play_next(guild_id, e),
         )
 
