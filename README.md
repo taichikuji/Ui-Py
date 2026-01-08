@@ -6,7 +6,7 @@ Ui is a bot written in Python, inspired by the character Ui Hirasawa from the K-
 <p align="center"><img src="media/ui.webp" width="150px" /><br/>
 <img src="https://img.shields.io/github/license/taichikuji/Ui-Py?color=FF3351&logo=github" />
 <img src="https://img.shields.io/github/commit-activity/w/taichikuji/Ui-Py?label=commits&logo=github" />
-<img src="https://img.shields.io/librariesio/github/taichikuji/Ui-Py?logo=github" />
+<img src="https://img.shields.io/librariesio/github/taichikuji/Miia-Py?logo=github" />
 </p>
 
 ## Why Python?
