@@ -27,7 +27,7 @@ class ClearCog(commands.Cog):
         if isinstance(channel := interaction.channel, (TextChannel, Thread)):
             deleted = await channel.purge(limit=amount, check=check_message)
             if user:
-                msg = f":wastebasket: Deleted {len(deleted)} messages from {user.display_name}."
+                msg = f":wastebasket: Scanned {amount} messages and deleted {len(deleted)} messages from {user.display_name}."
             else:
                 msg = f":wastebasket: Deleted {len(deleted)} messages."
             await interaction.followup.send(msg, ephemeral=True)
