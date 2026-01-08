@@ -1,7 +1,7 @@
 services:
   discord:
-    # build: ./
-    image: ghcr.io/taichikuji/ui-py
+    build: ./
+    # image: ghcr.io/taichikuji/ui-py
     restart: on-failure:5
     container_name: ui
     environment:
