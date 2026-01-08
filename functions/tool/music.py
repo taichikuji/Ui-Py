@@ -25,6 +25,10 @@ class MusicCog(commands.Cog):
             "default_search": "ytsearch",
             "noplaylist": True,
             "quiet": True,
+            "nocheckcertificate": True,
+            "ignoreerrors": False,
+            "no_warnings": True,
+            "source_address": "0.0.0.0",
             "extract_flat": False,
         }
         self.ffmpeg_opts = {
