@@ -139,22 +139,17 @@ class MusicCog(commands.Cog):
 
     async def _disconnect_and_cleanup(self, guild_id: int):
         vc: VoiceClient | None = self.voice_clients.pop(guild_id, None)
-        if vc:
-            if vc.is_connected():
-                try:
-                    vc.stop()
-                    await vc.disconnect()
-                except Exception as e:
-                    print(f"[ERROR] MusicCog: Error during disconnect for guild {guild_id}: {e}")
-        try:
-            self.queues.pop(guild_id, None)
-            self.command_channels.pop(guild_id, None)
-            self.currently_playing.pop(guild_id, None)
-            await get_running_loop().run_in_executor(None, collect)
-        except Exception as e:
-            print(f"[ERROR] MusicCog: Error during cleanup for guild {guild_id}: {e}")
-        finally:
-            return True
+        if vc and vc.is_connected():
+            try:
+                vc.stop()
+                await vc.disconnect()
+            except Exception as e:
+                print(f"[ERROR] MusicCog: Error during disconnect for guild {guild_id}: {e}")
+        self.queues.pop(guild_id, None)
+        self.command_channels.pop(guild_id, None)
+        self.currently_playing.pop(guild_id, None)
+        # Manual GC collection: prevents memory buildup during extended bot uptime.
+        await get_running_loop().run_in_executor(None, collect)
 
     def _play_next(self, guild_id: int, error=None):
         if error:
@@ -167,14 +162,14 @@ class MusicCog(commands.Cog):
             webpage_url, title, duration = self.queues[guild_id].pop(0)
             
             coro = self._play_song(guild_id, webpage_url, None, title, duration)
-            self.bot.loop.create_task(coro)
+            run_coroutine_threadsafe(coro, self.bot.loop)
 
             if guild_id in self.command_channels and (channel := self.command_channels[guild_id]):
                 msg_coro = channel.send(f":notes: Now playing: **{title}** [{duration}]")
-                self.bot.loop.create_task(msg_coro)
+                run_coroutine_threadsafe(msg_coro, self.bot.loop)
         else:
             self.currently_playing.pop(guild_id, None)
-            self.bot.loop.create_task(self._disconnect_and_cleanup(guild_id))
+            run_coroutine_threadsafe(self._disconnect_and_cleanup(guild_id), self.bot.loop)
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: Member, before: VoiceState, after: VoiceState):
@@ -271,13 +266,12 @@ class MusicCog(commands.Cog):
         if not queue_items:
             await interaction.response.send_message(":x: The music queue is currently empty.")
         else:
-            queue_list = "\n".join(queue_items)
-            em = {
-                "title": ":notes: Music Queue",
-                "description": queue_list,
-                "color": self.bot.color,
-            }
-            await interaction.response.send_message(embed=Embed.from_dict(em))
+            embed = Embed(
+                title=":notes: Music Queue",
+                description="\n".join(queue_items),
+                color=self.bot.color,
+            )
+            await interaction.response.send_message(embed=embed)
 
     @app_commands.command(
         name="skip",
@@ -297,6 +291,9 @@ class MusicCog(commands.Cog):
                 await interaction.response.send_message(":x: No music is currently playing.", ephemeral=True)
         else:
             await interaction.response.send_message(":x: The bot is not connected to a voice channel.", ephemeral=True)
+
+    # NOTE: /nowplaying command is intentionally omitted.
+    # By design, a message is already sent to the channel when a song starts playing.
 
     @app_commands.command(
         name="shuffle",
