@@ -18,8 +18,8 @@ autoflake = "*"
 aiohttp = "*"
 psutil = "*"
 yt-dlp = "*"
-pynacl = "*"
 aiosqlite = "*"
+pynacl = "*"
 
 [requires]
 python_version = "3.12"
