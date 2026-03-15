@@ -2,11 +2,12 @@ services:
   discord:
     build: ./
     # image: ghcr.io/taichikuji/ui-py
-    restart: on-failure:5
+    restart: unless-stopped
     container_name: ui
     environment:
       - TOKEN=${TOKEN}
       - STEAM_TOKEN=${STEAM_TOKEN}
+      - VOICE_CHANNEL_ID=${VOICE_CHANNEL_ID}
     volumes:
       - ui_db:/usr/src/app/data
     # Label for updater to detect the service to update
