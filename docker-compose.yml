@@ -7,7 +7,6 @@ services:
     environment:
       - TOKEN=${TOKEN}
       - STEAM_TOKEN=${STEAM_TOKEN}
-      - VOICE_CHANNEL_ID=${VOICE_CHANNEL_ID}
     volumes:
       - ui_db:/usr/src/app/data
     # Label for updater to detect the service to update

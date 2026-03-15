@@ -1,19 +1,16 @@
-from os import environ
+from os import makedirs, path
 from typing import TYPE_CHECKING
 
+from aiosqlite import connect
 from discord import (ButtonStyle, Embed, Interaction, Member,
-                     PermissionOverwrite, VoiceChannel, VoiceState)
+                     PermissionOverwrite, VoiceChannel, VoiceState,
+                     app_commands)
 from discord.ext import commands
 from discord.ui import Button, Modal, TextInput, View, button
 
 if TYPE_CHECKING:
     from main import UiPy
 
-try:
-    VOICE_CHANNEL_ID = environ.get("VOICE_CHANNEL_ID")
-except Exception as e:
-    print(f"[ERROR] LobbyCog: Failed to load VOICE_CHANNEL_ID from environment. {e}")
-    VOICE_CHANNEL_ID = None
 
 class VoiceControlView(View):
     def __init__(self, channel: VoiceChannel, owner: Member):
@@ -74,11 +71,71 @@ class LobbyCog(commands.Cog):
     """Cog for dynamic voice channel creation and cleanup."""
     def __init__(self, bot: "UiPy"):
         self.bot = bot
+        self.db_path = "data/ui.sqlite"
         self.active_channels: set[int] = set()
+        self.generators: dict[int, int] = {}  # guild_id -> channel_id
+
+    async def cog_load(self):
+        await self._init_db()
+        await self._load_generators()
+
+    async def _init_db(self):
+        makedirs(path.dirname(self.db_path), exist_ok=True)
+        async with connect(self.db_path) as db:
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS lobby_generators (
+                    guild_id INTEGER PRIMARY KEY,
+                    channel_id INTEGER NOT NULL
+                )
+            """)
+            await db.commit()
+
+    async def _load_generators(self):
+        async with connect(self.db_path) as db:
+            async with db.execute("SELECT guild_id, channel_id FROM lobby_generators") as cursor:
+                self.generators = {row[0]: row[1] async for row in cursor}
+
+    async def _save_generator(self, guild_id: int, channel_id: int):
+        async with connect(self.db_path) as db:
+            await db.execute(
+                "INSERT OR REPLACE INTO lobby_generators (guild_id, channel_id) VALUES (?, ?)",
+                (guild_id, channel_id),
+            )
+            await db.commit()
+        self.generators[guild_id] = channel_id
+
+    async def _remove_generator(self, guild_id: int):
+        async with connect(self.db_path) as db:
+            await db.execute("DELETE FROM lobby_generators WHERE guild_id = ?", (guild_id,))
+            await db.commit()
+        self.generators.pop(guild_id, None)
+
+    @app_commands.command(
+        name="set",
+        description="Set or clear the voice channel that creates dynamic lobbies.",
+    )
+    @app_commands.describe(channel="The voice channel to use as a lobby generator. Leave empty to clear.")
+    @app_commands.checks.has_permissions(manage_channels=True)
+    async def set_generator(self, interaction: Interaction, channel: VoiceChannel | None = None) -> None:
+        if channel is None:
+            if interaction.guild_id not in self.generators:
+                await interaction.response.send_message(
+                    ":x: No lobby generator is set for this server.", ephemeral=True
+                )
+                return
+            await self._remove_generator(interaction.guild_id)
+            await interaction.response.send_message(
+                ":white_check_mark: Lobby generator cleared.", ephemeral=True
+            )
+        else:
+            await self._save_generator(interaction.guild_id, channel.id)
+            await interaction.response.send_message(
+                f":white_check_mark: **{channel.name}** is now the lobby generator.", ephemeral=True
+            )
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: Member, before: VoiceState, after: VoiceState) -> None:
-        if after.channel and after.channel.id == int(VOICE_CHANNEL_ID):
+        if after.channel and after.channel.id == self.generators.get(after.channel.guild.id):
             await self._create_lobby(member, after.channel)
 
         if before.channel and before.channel.id in self.active_channels:
@@ -123,9 +180,4 @@ class LobbyCog(commands.Cog):
 
 async def setup(bot: "UiPy"):
     """Add the LobbyCog to the bot."""
-    if not VOICE_CHANNEL_ID:
-        raise commands.ExtensionFailed(
-            name="functions.tool.lobby",
-            original=RuntimeError("VOICE_CHANNEL_ID environment variable is not set."),
-        )
     await bot.add_cog(LobbyCog(bot))
