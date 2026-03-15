@@ -139,7 +139,7 @@ class LobbyCog(commands.Cog):
             await self._create_lobby(member, after.channel)
 
         if before.channel and before.channel.id in self.active_channels:
-            if len(before.channel.members) == 0:
+            if len(before.channel.voice_states) == 0:
                 await self._delete_lobby(before.channel)
 
     async def _create_lobby(self, member: Member, generator: VoiceChannel) -> None:
