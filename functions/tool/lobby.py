@@ -78,27 +78,38 @@ class LobbyCog(commands.Cog):
     async def cog_load(self):
         await self._init_db()
         await self._load_generators()
+        await self._load_lobby_active()
 
     async def _init_db(self):
         makedirs(path.dirname(self.db_path), exist_ok=True)
         async with connect(self.db_path) as db:
             await db.execute("""
-                CREATE TABLE IF NOT EXISTS lobby_generators (
+                CREATE TABLE IF NOT EXISTS lobby_generator (
                     guild_id INTEGER PRIMARY KEY,
                     channel_id INTEGER NOT NULL
+                )
+            """)
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS lobby_active (
+                    channel_id INTEGER PRIMARY KEY
                 )
             """)
             await db.commit()
 
     async def _load_generators(self):
         async with connect(self.db_path) as db:
-            async with db.execute("SELECT guild_id, channel_id FROM lobby_generators") as cursor:
+            async with db.execute("SELECT guild_id, channel_id FROM lobby_generator") as cursor:
                 self.generators = {row[0]: row[1] async for row in cursor}
+
+    async def _load_lobby_active(self):
+        async with connect(self.db_path) as db:
+            async with db.execute("SELECT channel_id FROM lobby_active") as cursor:
+                self.active_channels = {row[0] async for row in cursor}
 
     async def _save_generator(self, guild_id: int, channel_id: int):
         async with connect(self.db_path) as db:
             await db.execute(
-                "INSERT OR REPLACE INTO lobby_generators (guild_id, channel_id) VALUES (?, ?)",
+                "INSERT OR REPLACE INTO lobby_generator (guild_id, channel_id) VALUES (?, ?)",
                 (guild_id, channel_id),
             )
             await db.commit()
@@ -106,7 +117,7 @@ class LobbyCog(commands.Cog):
 
     async def _remove_generator(self, guild_id: int):
         async with connect(self.db_path) as db:
-            await db.execute("DELETE FROM lobby_generators WHERE guild_id = ?", (guild_id,))
+            await db.execute("DELETE FROM lobby_generator WHERE guild_id = ?", (guild_id,))
             await db.commit()
         self.generators.pop(guild_id, None)
 
@@ -115,6 +126,7 @@ class LobbyCog(commands.Cog):
         description="Set or clear the voice channel that creates dynamic lobbies.",
     )
     @app_commands.describe(channel="The voice channel to use as a lobby generator. Leave empty to clear.")
+    @app_commands.guild_only()
     @app_commands.checks.has_permissions(manage_channels=True)
     async def set_generator(self, interaction: Interaction, channel: VoiceChannel | None = None) -> None:
         if channel is None:
@@ -135,12 +147,15 @@ class LobbyCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: Member, before: VoiceState, after: VoiceState) -> None:
-        if after.channel and after.channel.id == self.generators.get(after.channel.guild.id):
-            await self._create_lobby(member, after.channel)
+        if before.channel == after.channel:
+            return
 
         if before.channel and before.channel.id in self.active_channels:
-            if len(before.channel.voice_states) == 0:
+            if len(before.channel.members) == 0:
                 await self._delete_lobby(before.channel)
+
+        if after.channel and after.channel.id == self.generators.get(after.channel.guild.id):
+            await self._create_lobby(member, after.channel)
 
     async def _create_lobby(self, member: Member, generator: VoiceChannel) -> None:
         guild = member.guild
@@ -159,6 +174,9 @@ class LobbyCog(commands.Cog):
         try:
             await member.move_to(new_channel)
             self.active_channels.add(new_channel.id)
+            async with connect(self.db_path) as db:
+                await db.execute("INSERT INTO lobby_active (channel_id) VALUES (?)", (new_channel.id,))
+                await db.commit()
 
             embed = Embed(
                 title=":control_knobs: Voice Control",
@@ -168,6 +186,7 @@ class LobbyCog(commands.Cog):
             await new_channel.send(embed=embed, view=VoiceControlView(new_channel, member))
         except Exception as e:
             print(f"[ERROR] LobbyCog: Failed to set up lobby for {member.display_name}: {e}")
+            self.active_channels.discard(new_channel.id)
             await new_channel.delete()
 
     async def _delete_lobby(self, channel: VoiceChannel) -> None:
@@ -176,6 +195,9 @@ class LobbyCog(commands.Cog):
         except Exception:
             pass
         self.active_channels.discard(channel.id)
+        async with connect(self.db_path) as db:
+            await db.execute("DELETE FROM lobby_active WHERE channel_id = ?", (channel.id,))
+            await db.commit()
 
 
 async def setup(bot: "UiPy"):
