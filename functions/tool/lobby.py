@@ -106,6 +106,20 @@ class LobbyCog(commands.Cog):
             async with db.execute("SELECT channel_id FROM lobby_active") as cursor:
                 self.active_channels = {row[0] async for row in cursor}
 
+    @commands.Cog.listener()
+    async def on_ready(self):
+        if not hasattr(self, '_lobbies_cleaned'):
+            await self._cleanup_ghost_lobbies()
+            self._lobbies_cleaned = True
+
+    async def _cleanup_ghost_lobbies(self):
+        ghost_ids = {cid for cid in self.active_channels if self.bot.get_channel(cid) is None}
+        if ghost_ids:
+            async with connect(self.db_path) as db:
+                await db.executemany("DELETE FROM lobby_active WHERE channel_id = ?", [(cid,) for cid in ghost_ids])
+                await db.commit()
+            self.active_channels -= ghost_ids
+
     async def _save_generator(self, guild_id: int, channel_id: int):
         async with connect(self.db_path) as db:
             await db.execute(
