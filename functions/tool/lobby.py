@@ -159,6 +159,16 @@ class LobbyCog(commands.Cog):
                 f":white_check_mark: **{channel.name}** is now the lobby generator.", ephemeral=True
             )
 
+    @set_generator.error
+    async def on_set_generator_error(self, interaction: Interaction, error: app_commands.AppCommandError) -> None:
+        if isinstance(error, app_commands.errors.MissingPermissions):
+            await interaction.response.send_message(
+                ":x: You need Manage Channels permissions to configure the lobby generator.",
+                ephemeral=True,
+            )
+        else:
+            print(f"[ERROR] LobbyCog: Unexpected error in set command: {error}")
+
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: Member, before: VoiceState, after: VoiceState) -> None:
         if before.channel == after.channel:
