@@ -56,10 +56,13 @@ main() {
         docker-compose up -d "$SERVICE"
     done
     
-    # Cleanup
-    log "$INFO" "Cleaning up old images..."
-    if docker image prune -f > /dev/null 2>&1; then
+    # Cleanup: only report if there was actually something to remove
+    PRUNED=$(docker image prune -f 2>/dev/null)
+    if echo "$PRUNED" | grep -q "^Deleted Images:"; then
+        log "$INFO" "Cleaning up old images..."
         log "$SUCCESS" "Old images removed."
+    else
+        log "$INFO" "No updates available, nothing to do!"
     fi
 }
 
