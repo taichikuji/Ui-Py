@@ -46,21 +46,35 @@ main() {
     fi
 
     # 3. Let Docker Compose handle the update logic
+    UPDATED=0
     for SERVICE in $SERVICES; do
         log "$INFO" "Updating service: $SERVICE"
         
+        # Get current container ID before updating
+        OLD_ID=$(docker-compose ps -q "$SERVICE" 2>/dev/null)
+        
         # Pull latest image
-        docker-compose pull -q "$SERVICE"
+        if ! docker-compose pull -q "$SERVICE" 2>/dev/null; then
+            log "$ERROR" "Failed to pull image for service: $SERVICE"
+            continue
+        fi
         
         # Recreates container ONLY if image has changed
         docker-compose up -d "$SERVICE"
+        
+        # Compare container IDs to detect if an update occurred
+        NEW_ID=$(docker-compose ps -q "$SERVICE" 2>/dev/null)
+        if [ "$OLD_ID" != "$NEW_ID" ]; then
+            UPDATED=1
+        fi
     done
     
-    # Cleanup: only report if there was actually something to remove
-    PRUNED=$(docker image prune -f 2>/dev/null)
-    if echo "$PRUNED" | grep -q "^Deleted Images:"; then
+    # Cleanup
+    if [ "$UPDATED" -eq 1 ]; then
         log "$INFO" "Cleaning up old images..."
-        log "$SUCCESS" "Old images removed."
+        if docker image prune -f > /dev/null 2>&1; then
+            log "$SUCCESS" "Old images removed."
+        fi
     else
         log "$INFO" "No updates available, nothing to do!"
     fi

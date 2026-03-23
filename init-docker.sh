@@ -26,7 +26,7 @@ show_help() {
 }
 
 prune() {
-    if docker-compose down --rmi local --volumes --remove-orphans; then
+    if docker compose down --rmi local --volumes --remove-orphans; then
         log "$SUCCESS" "Docker cleanup successful"
     else
         log "$ERROR" "Docker cleanup failed"; exit 1
@@ -69,7 +69,7 @@ if [[ "$1" == "--reset" ]]; then
 fi
 
 # Clean old version
-if docker-compose down; then
+if docker compose down; then
     log "$SUCCESS" "Container removed"
 else
     log "$ERROR" "Failed to remove containers"; exit 1
@@ -83,7 +83,7 @@ else
 fi
 
 # Build and start new version
-if docker-compose build --force-rm && docker-compose up -d; then
+if docker compose build --force-rm && docker compose up -d; then
     cleanup_buildkit
     log "$SUCCESS" "Build and start successful"
 else
