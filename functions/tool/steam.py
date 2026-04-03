@@ -20,14 +20,13 @@ class SteamCog(commands.Cog):
     def __init__(self, bot: "UiPy"):
         self.bot = bot
         self.steam_api_base = "https://api.steampowered.com"
-        self.db_path = "data/ui.sqlite"
 
     async def cog_load(self):
         await self._init_db()
 
     async def _init_db(self):
-        makedirs(path.dirname(self.db_path), exist_ok=True)
-        async with connect(self.db_path) as db:
+        makedirs(path.dirname(self.bot.db_path), exist_ok=True)
+        async with connect(self.bot.db_path) as db:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS steam_links (
                     discord_id INTEGER PRIMARY KEY,
@@ -37,7 +36,7 @@ class SteamCog(commands.Cog):
             await db.commit()
 
     async def _save_steam_link(self, discord_id: int, steam_id: str):
-        async with connect(self.db_path) as db:
+        async with connect(self.bot.db_path) as db:
             await db.execute(
                 "INSERT OR REPLACE INTO steam_links (discord_id, steam_id) VALUES (?, ?)",
                 (discord_id, steam_id)
@@ -45,7 +44,7 @@ class SteamCog(commands.Cog):
             await db.commit()
 
     async def _get_steam_link(self, discord_id: int) -> str | None:
-        async with connect(self.db_path) as db:
+        async with connect(self.bot.db_path) as db:
             async with db.execute("SELECT steam_id FROM steam_links WHERE discord_id = ?", (discord_id,)) as cursor:
                 if row := await cursor.fetchone():
                     return row[0]

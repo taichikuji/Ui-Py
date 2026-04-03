@@ -71,7 +71,6 @@ class LobbyCog(commands.Cog):
     """Cog for dynamic voice channel creation and cleanup."""
     def __init__(self, bot: "UiPy"):
         self.bot = bot
-        self.db_path = "data/ui.sqlite"
         self.active_channels: set[int] = set()
         self.generators: dict[int, int] = {}  # guild_id -> channel_id
 
@@ -81,8 +80,8 @@ class LobbyCog(commands.Cog):
         await self._load_lobby_active()
 
     async def _init_db(self):
-        makedirs(path.dirname(self.db_path), exist_ok=True)
-        async with connect(self.db_path) as db:
+        makedirs(path.dirname(self.bot.db_path), exist_ok=True)
+        async with connect(self.bot.db_path) as db:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS lobby_generator (
                     guild_id INTEGER PRIMARY KEY,
@@ -97,12 +96,12 @@ class LobbyCog(commands.Cog):
             await db.commit()
 
     async def _load_generators(self):
-        async with connect(self.db_path) as db:
+        async with connect(self.bot.db_path) as db:
             async with db.execute("SELECT guild_id, channel_id FROM lobby_generator") as cursor:
                 self.generators = {row[0]: row[1] async for row in cursor}
 
     async def _load_lobby_active(self):
-        async with connect(self.db_path) as db:
+        async with connect(self.bot.db_path) as db:
             async with db.execute("SELECT channel_id FROM lobby_active") as cursor:
                 self.active_channels = {row[0] async for row in cursor}
 
@@ -115,13 +114,13 @@ class LobbyCog(commands.Cog):
     async def _cleanup_ghost_lobbies(self):
         ghost_ids = {cid for cid in self.active_channels if self.bot.get_channel(cid) is None}
         if ghost_ids:
-            async with connect(self.db_path) as db:
+            async with connect(self.bot.db_path) as db:
                 await db.executemany("DELETE FROM lobby_active WHERE channel_id = ?", [(cid,) for cid in ghost_ids])
                 await db.commit()
             self.active_channels -= ghost_ids
 
     async def _save_generator(self, guild_id: int, channel_id: int):
-        async with connect(self.db_path) as db:
+        async with connect(self.bot.db_path) as db:
             await db.execute(
                 "INSERT OR REPLACE INTO lobby_generator (guild_id, channel_id) VALUES (?, ?)",
                 (guild_id, channel_id),
@@ -130,7 +129,7 @@ class LobbyCog(commands.Cog):
         self.generators[guild_id] = channel_id
 
     async def _remove_generator(self, guild_id: int):
-        async with connect(self.db_path) as db:
+        async with connect(self.bot.db_path) as db:
             await db.execute("DELETE FROM lobby_generator WHERE guild_id = ?", (guild_id,))
             await db.commit()
         self.generators.pop(guild_id, None)
@@ -198,7 +197,7 @@ class LobbyCog(commands.Cog):
         try:
             await member.move_to(new_channel)
             self.active_channels.add(new_channel.id)
-            async with connect(self.db_path) as db:
+            async with connect(self.bot.db_path) as db:
                 await db.execute("INSERT INTO lobby_active (channel_id) VALUES (?)", (new_channel.id,))
                 await db.commit()
 
@@ -219,7 +218,7 @@ class LobbyCog(commands.Cog):
         except Exception:
             pass
         self.active_channels.discard(channel.id)
-        async with connect(self.db_path) as db:
+        async with connect(self.bot.db_path) as db:
             await db.execute("DELETE FROM lobby_active WHERE channel_id = ?", (channel.id,))
             await db.commit()
 

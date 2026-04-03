@@ -14,14 +14,13 @@ class NintendoCog(commands.Cog):
     """Cog for Nintendo Switch Friend Code linking and sharing."""
     def __init__(self, bot: "UiPy"):
         self.bot = bot
-        self.db_path = "data/ui.sqlite"
 
     async def cog_load(self):
         await self._init_db()
 
     async def _init_db(self):
-        makedirs(path.dirname(self.db_path), exist_ok=True)
-        async with connect(self.db_path) as db:
+        makedirs(path.dirname(self.bot.db_path), exist_ok=True)
+        async with connect(self.bot.db_path) as db:
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS nintendo_links (
                     discord_id INTEGER PRIMARY KEY,
@@ -31,7 +30,7 @@ class NintendoCog(commands.Cog):
             await db.commit()
 
     async def _save_nintendo_link(self, discord_id: int, nintendo_id: str):
-        async with connect(self.db_path) as db:
+        async with connect(self.bot.db_path) as db:
             await db.execute(
                 "INSERT OR REPLACE INTO nintendo_links (discord_id, nintendo_id) VALUES (?, ?)",
                 (discord_id, nintendo_id)
@@ -39,7 +38,7 @@ class NintendoCog(commands.Cog):
             await db.commit()
 
     async def _get_nintendo_link(self, discord_id: int) -> str | None:
-        async with connect(self.db_path) as db:
+        async with connect(self.bot.db_path) as db:
             async with db.execute("SELECT nintendo_id FROM nintendo_links WHERE discord_id = ?", (discord_id,)) as cursor:
                 if row := await cursor.fetchone():
                     return row[0]

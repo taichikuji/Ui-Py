@@ -22,6 +22,7 @@ class UiPy(commands.AutoShardedBot):
         self._bot_token = TOKEN
         self.session: ClientSession | None = None
         self.color = 0xFF3351
+        self.db_path = "data/ui.sqlite"
 
     async def setup_hook(self):
         self.session = ClientSession()
