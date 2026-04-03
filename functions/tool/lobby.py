@@ -117,6 +117,7 @@ class LobbyCog(commands.Cog):
     async def _cleanup_ghost_lobbies(self):
         ghost_ids = {cid for cid in self.active_channels if self.bot.get_channel(cid) is None}
         if ghost_ids:
+            logger.info("Cleaning up %d ghost lobby channel(s).", len(ghost_ids))
             async with connect(self.bot.db_path) as db:
                 await db.executemany("DELETE FROM lobby_active WHERE channel_id = ?", [(cid,) for cid in ghost_ids])
                 await db.commit()
@@ -218,8 +219,8 @@ class LobbyCog(commands.Cog):
     async def _delete_lobby(self, channel: VoiceChannel) -> None:
         try:
             await channel.delete(reason="Dynamic channel empty")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error("Failed to delete lobby channel %s: %s", channel.id, e)
         self.active_channels.discard(channel.id)
         async with connect(self.bot.db_path) as db:
             await db.execute("DELETE FROM lobby_active WHERE channel_id = ?", (channel.id,))

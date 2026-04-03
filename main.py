@@ -8,7 +8,8 @@ from discord.ext import commands
 
 logging.basicConfig(
     level=logging.INFO,
-    format="[%(levelname)s] %(name)s: %(message)s",
+    format="%(asctime)s %(levelname)-8s %(name)s %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("UiPy")
 

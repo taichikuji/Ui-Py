@@ -1,3 +1,4 @@
+import logging
 from asyncio import sleep
 from typing import TYPE_CHECKING, Optional
 
@@ -8,6 +9,8 @@ from discord.ui import Button, View, button
 
 if TYPE_CHECKING:
     from main import UiPy
+
+logger = logging.getLogger(__name__)
 
 
 class VotekickView(View):
@@ -70,7 +73,7 @@ class VotekickView(View):
                 try:
                     await self.target.move_to(None, reason="Votekick successful.")
                 except Exception:
-                    pass
+                    logger.error("Failed to move %s during votekick.", self.target)
                 
                 overwrite = PermissionOverwrite()
                 overwrite.connect = False
@@ -99,7 +102,10 @@ class ModerationCog(commands.Cog):
 
     async def unban_after_delay(self, member: Member, channel, delay: int):
         await sleep(delay)
-        await channel.set_permissions(member, overwrite=None)
+        try:
+            await channel.set_permissions(member, overwrite=None)
+        except Exception as e:
+            logger.error("Failed to remove votekick ban for %s in channel %s: %s", member, channel.id, e)
 
     @app_commands.command(name="votekick", description="Start a vote to kick a user from the current voice channel.")
     async def votekick(self, interaction: Interaction, member: Member):
