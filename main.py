@@ -34,6 +34,9 @@ class UiPy(commands.AutoShardedBot):
     async def setup_hook(self):
         self.session = ClientSession()
         for functions in iglob("functions/**/*.py", recursive=True):
+            filename = functions.split(sep)[-1]
+            if filename.startswith("_"):
+                continue
             module = functions.replace(".py", "").replace(sep, ".")
             try:
                 await self.load_extension(module)
