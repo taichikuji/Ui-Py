@@ -5,12 +5,9 @@ from os import environ, sep
 from aiohttp import ClientSession
 from discord import Activity, ActivityType, Intents
 from discord.ext import commands
+from discord.utils import setup_logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)-8s %(name)s %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+setup_logging()
 logger = logging.getLogger("UiPy")
 
 if (TOKEN := environ.get("TOKEN")) is None:
@@ -69,7 +66,7 @@ class UiPy(commands.AutoShardedBot):
 
     def run(self, *args, **kwargs):
         try:
-            super().run(str(self._bot_token), reconnect=True, *args, **kwargs)
+            super().run(str(self._bot_token), reconnect=True, log_handler=None, *args, **kwargs)
         except TypeError:
             logger.error("An unexpected keyword argument was passed!")
         except Exception as e:
