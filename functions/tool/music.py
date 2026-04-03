@@ -1,43 +1,52 @@
 import logging
-from asyncio import get_running_loop, run_coroutine_threadsafe
-from gc import collect
-from random import shuffle
+from os import environ
+from random import shuffle as shuffle_list
 from typing import TYPE_CHECKING
 
-from discord import (Embed, FFmpegPCMAudio, Interaction, Member, TextChannel,
-                     VoiceChannel, VoiceClient, app_commands, VoiceState)
+import wavelink
+from discord import Embed, Interaction, Member, app_commands
 from discord.ext import commands
-from yt_dlp import YoutubeDL
 
 if TYPE_CHECKING:
     from main import UiPy
 
 logger = logging.getLogger(__name__)
 
+LAVALINK_URI = environ.get("LAVALINK_URI", "http://localhost:2333")
+LAVALINK_PASSWORD = environ.get("LAVALINK_PASSWORD", "youshallnotpass")
+
 
 class MusicCog(commands.Cog):
-    """Cog for music playback and queue management in voice channels."""
+    """Cog for music playback and queue management via Lavalink."""
+
     def __init__(self, bot: "UiPy"):
         self.bot = bot
-        self.voice_clients: dict[int, VoiceClient] = {}
-        self.queues: dict[int, list[tuple[str, str, str]]] = {}
-        self.currently_playing: dict[int, tuple[str, str, str]] = {}
-        self.command_channels: dict[int, TextChannel] = {}
-        self.ydl_opts = {
-            "format": "bestaudio/best",
-            "default_search": "ytsearch",
-            "noplaylist": True,
-            "quiet": True,
-            "nocheckcertificate": True,
-            "ignoreerrors": False,
-            "no_warnings": True,
-            "source_address": "0.0.0.0",
-            "extract_flat": False,
-        }
-        self.ffmpeg_opts = {
-            "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -analyzeduration 10M -probesize 10M",
-            "options": "-vn",
-        }
+
+    async def cog_load(self):
+        nodes = [wavelink.Node(uri=LAVALINK_URI, password=LAVALINK_PASSWORD)]
+        await wavelink.Pool.connect(nodes=nodes, client=self.bot, cache_capacity=100)
+
+    @commands.Cog.listener()
+    async def on_wavelink_node_ready(self, payload: wavelink.NodeReadyEventPayload) -> None:
+        logger.info("Lavalink node %s is ready.", payload.node.identifier)
+
+    @commands.Cog.listener()
+    async def on_wavelink_track_start(self, payload: wavelink.TrackStartEventPayload) -> None:
+        player: wavelink.Player | None = payload.player
+        if not player or not hasattr(player, "command_channel"):
+            return
+
+        track: wavelink.Playable = payload.track
+        duration = self._format_duration(track.length)
+        await player.command_channel.send(f":notes: Now playing: **{track.title}** [{duration}]")
+
+    @commands.Cog.listener()
+    async def on_wavelink_inactive_player(self, player: wavelink.Player) -> None:
+        if hasattr(player, "command_channel"):
+            await player.command_channel.send(
+                f":zzz: Inactive for `{player.inactive_timeout}` seconds. Disconnecting."
+            )
+        await player.disconnect()
 
     @app_commands.command(
         name="play",
@@ -45,229 +54,191 @@ class MusicCog(commands.Cog):
     )
     async def play(self, interaction: Interaction, query: str):
         if not query:
-            await interaction.response.send_message(":x: You must provide a search term or URL.", ephemeral=True)
-            return
-
-        guild_id = interaction.guild_id
-        if guild_id is None:
-            await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
+            await interaction.response.send_message(
+                ":x: You must provide a search term or URL.", ephemeral=True
+            )
             return
 
         user = interaction.user
         if not isinstance(user, Member):
-            await interaction.response.send_message(":x: This command can only be used in a server.", ephemeral=True)
+            await interaction.response.send_message(
+                ":x: This command can only be used in a server.", ephemeral=True
+            )
             return
 
         if not user.voice or not user.voice.channel:
-            await interaction.response.send_message(":x: You need to be in a voice channel to use this command.", ephemeral=True)
+            await interaction.response.send_message(
+                ":x: You need to be in a voice channel to use this command.",
+                ephemeral=True,
+            )
             return
 
         await interaction.response.defer()
-        
-        voice_channel = user.voice.channel
-        vc: VoiceClient
-        if guild_id not in self.voice_clients or not self.voice_clients[guild_id].is_connected():
-            try:
-                vc = await voice_channel.connect(self_deaf=True)
-                self.voice_clients[guild_id] = vc
-            except Exception as e:
-                await interaction.followup.send(f":x: Failed to connect to the voice channel. Error: {e}", ephemeral=True)
-                return
-        else:
-            vc = self.voice_clients[guild_id]
-            if vc.channel and vc.channel != user.voice.channel:
-                await interaction.followup.send(":x: I am already playing music in another voice channel.", ephemeral=True)
-                return
 
-        try:
-            if info := await get_running_loop().run_in_executor(
-                None, self._search_source, query
-            ):
-                if "entries" in info:
-                    info = info["entries"][0]
-                
-                webpage_url = info.get("webpage_url")
-                stream_url = info.get("url")
-                
-                title = info.get("title", "Unknown Title")
-                duration = info.get("duration_string", "N/A")
-
-                if not webpage_url:
-                    raise ValueError("No webpage URL found.")
-            else:
-                raise ValueError("Failed to extract information")
-        except Exception as e:
-            await interaction.followup.send(f":x: Failed to retrieve video. Error: {e}", ephemeral=True)
-            return
-
-        channel = interaction.channel
-        if not isinstance(channel, (TextChannel, VoiceChannel)):
-            await interaction.followup.send(":x: This command must be used in a text channel.", ephemeral=True)
-            return
-
-        self.command_channels[guild_id] = channel
-
-        if guild_id not in self.queues:
-            self.queues[guild_id] = []
-
-        if not vc.is_playing() and not vc.is_paused() and not self.queues[guild_id]:
-            await self._play_song(guild_id, webpage_url, stream_url, title, duration)
-            await interaction.followup.send(f":notes: Now playing: **{title}** [{duration}]")
-        else:
-            self.queues[guild_id].append((webpage_url, title, duration))
-            await interaction.followup.send(f":ballot_box_with_check: Added to queue: **{title}** [{duration}]")
-
-    def _search_source(self, query: str):
-        with YoutubeDL(self.ydl_opts) as ydl:
-            return ydl.extract_info(query, download=False)
-
-    async def _play_song(self, guild_id: int, webpage_url: str, stream_url: str | None, title: str, duration: str):
-        if not stream_url:
-            try:
-                info = await get_running_loop().run_in_executor(None, self._search_source, webpage_url)
-                if "entries" in info:
-                    info = info["entries"][0]
-                stream_url = info.get("url")
-            except Exception as e:
-                logger.error("Could not refresh URL for %s: %s", title, e)
-                self._play_next(guild_id)
-                return
-
-        self.currently_playing[guild_id] = (webpage_url, title, duration)
-        vc: VoiceClient = self.voice_clients[guild_id]
-        vc.play(
-            FFmpegPCMAudio(stream_url, before_options=self.ffmpeg_opts["before_options"], options=self.ffmpeg_opts["options"]),
-            after=lambda e: self._play_next(guild_id, e),
+        player: wavelink.Player = (
+            interaction.guild.voice_client
+            or await user.voice.channel.connect(cls=wavelink.Player, self_deaf=True)
         )
 
-    async def _disconnect_and_cleanup(self, guild_id: int):
-        vc: VoiceClient | None = self.voice_clients.pop(guild_id, None)
-        if vc and vc.is_connected():
-            try:
-                vc.stop()
-                await vc.disconnect()
-            except Exception as e:
-                logger.error("Error during disconnect for guild %s: %s", guild_id, e)
-        self.queues.pop(guild_id, None)
-        self.command_channels.pop(guild_id, None)
-        self.currently_playing.pop(guild_id, None)
-        # Manual GC collection: prevents memory buildup during extended bot uptime.
-        await get_running_loop().run_in_executor(None, collect)
-
-    def _play_next(self, guild_id: int, error=None):
-        if error:
-            logger.error("Player error for guild %s: %s", guild_id, error)
-
-        if guild_id not in self.voice_clients or not self.voice_clients[guild_id].is_connected():
-            return
-        
-        if guild_id in self.queues and self.queues[guild_id]:
-            webpage_url, title, duration = self.queues[guild_id].pop(0)
-            
-            coro = self._play_song(guild_id, webpage_url, None, title, duration)
-            run_coroutine_threadsafe(coro, self.bot.loop)
-
-            if guild_id in self.command_channels and (channel := self.command_channels[guild_id]):
-                msg_coro = channel.send(f":notes: Now playing: **{title}** [{duration}]")
-                run_coroutine_threadsafe(msg_coro, self.bot.loop)
-        else:
-            self.currently_playing.pop(guild_id, None)
-            run_coroutine_threadsafe(self._disconnect_and_cleanup(guild_id), self.bot.loop)
-
-    @commands.Cog.listener()
-    async def on_voice_state_update(self, member: Member, before: VoiceState, after: VoiceState):
-        if member.bot:
+        if player.channel != user.voice.channel:
+            await interaction.followup.send(
+                ":x: I am already playing music in another voice channel.",
+                ephemeral=True,
+            )
             return
 
-        guild_id = member.guild.id
-        if guild_id not in self.voice_clients:
-            return
+        player.inactive_timeout = 120
+        player.command_channel = interaction.channel
 
-        vc = self.voice_clients[guild_id]
-        if not vc.is_connected() or not vc.channel:
-            return
+        try:
+            tracks: wavelink.Search = await wavelink.Playable.search(query)
+            if not tracks:
+                await interaction.followup.send(
+                    ":x: No results found for your query.", ephemeral=True
+                )
+                return
 
-        if before.channel == vc.channel and after.channel != vc.channel:
-            if len(vc.channel.members) == 1 and vc.channel.members[0] == self.bot.user:
-                await self._disconnect_and_cleanup(guild_id)
+            if isinstance(tracks, wavelink.Playlist):
+                added: int = await player.queue.put_wait(tracks)
+                await interaction.followup.send(
+                    f":ballot_box_with_check: Added playlist **{tracks.name}** ({added} songs) to the queue."
+                )
+            else:
+                track: wavelink.Playable = tracks[0]
+                await player.queue.put_wait(track)
+                duration = self._format_duration(track.length)
+                if player.playing:
+                    await interaction.followup.send(
+                        f":ballot_box_with_check: Added to queue: **{track.title}** [{duration}]"
+                    )
+                else:
+                    await interaction.followup.send(
+                        f":notes: Now playing: **{track.title}** [{duration}]"
+                    )
+
+            if not player.playing:
+                await player.play(player.queue.get())
+
+        except Exception as e:
+            logger.error("Failed to play query '%s': %s", query, e)
+            await interaction.followup.send(
+                f":x: Failed to retrieve track. Error: {e}", ephemeral=True
+            )
 
     @app_commands.command(
         name="stop",
-        description="Stop the currently playing music and disconnect."
+        description="Stop the currently playing music and disconnect.",
     )
     async def stop(self, interaction: Interaction):
-        guild_id = interaction.guild_id
-        if guild_id is None:
-            await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
+        player: wavelink.Player | None = interaction.guild.voice_client
+        if not player:
+            await interaction.response.send_message(
+                ":x: The bot is not connected to a voice channel.", ephemeral=True
+            )
             return
-        if guild_id in self.voice_clients:
-            await self._disconnect_and_cleanup(guild_id)
-            await interaction.response.send_message(":stop_button: Stopped and disconnected.")
-        else:
-            await interaction.response.send_message(":x: The bot is not connected to a voice channel.", ephemeral=True)
+
+        player.queue.clear()
+        await player.disconnect()
+        await interaction.response.send_message(":stop_button: Stopped and disconnected.")
 
     @app_commands.command(
         name="pause",
-        description="Pause the currently playing music."
+        description="Pause the currently playing music.",
     )
     async def pause(self, interaction: Interaction):
-        guild_id = interaction.guild_id
-        if guild_id is None:
-            await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
+        player: wavelink.Player | None = interaction.guild.voice_client
+        if not player:
+            await interaction.response.send_message(
+                ":x: The bot is not connected to a voice channel.", ephemeral=True
+            )
             return
-        if guild_id in self.voice_clients:
-            vc: VoiceClient = self.voice_clients[guild_id]
-            if vc.is_playing():
-                vc.pause()
-                await interaction.response.send_message(":pause_button: Music paused.")
-            else:
-                await interaction.response.send_message(":x: No music is currently playing.", ephemeral=True)
-        else:
-            await interaction.response.send_message(":x: The bot is not connected to a voice channel.", ephemeral=True)
+
+        if not player.playing:
+            await interaction.response.send_message(
+                ":x: No music is currently playing.", ephemeral=True
+            )
+            return
+
+        if player.paused:
+            await interaction.response.send_message(
+                ":x: The music is already paused.", ephemeral=True
+            )
+            return
+
+        await player.pause(True)
+        await interaction.response.send_message(":pause_button: Music paused.")
 
     @app_commands.command(
         name="resume",
-        description="Resume the paused music."
+        description="Resume the paused music.",
     )
     async def resume(self, interaction: Interaction):
-        guild_id = interaction.guild_id
-        if guild_id is None:
-            await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
+        player: wavelink.Player | None = interaction.guild.voice_client
+        if not player:
+            await interaction.response.send_message(
+                ":x: The bot is not connected to a voice channel.", ephemeral=True
+            )
             return
-        if guild_id in self.voice_clients:
-            vc: VoiceClient = self.voice_clients[guild_id]
-            if vc.is_paused():
-                vc.resume()
-                await interaction.response.send_message(":arrow_forward: Music resumed.")
-            else:
-                await interaction.response.send_message(":x: The music is not paused.", ephemeral=True)
-        else:
-            await interaction.response.send_message(":x: The bot is not connected to a voice channel.", ephemeral=True)
+
+        if not player.paused:
+            await interaction.response.send_message(
+                ":x: The music is not paused.", ephemeral=True
+            )
+            return
+
+        await player.pause(False)
+        await interaction.response.send_message(":arrow_forward: Music resumed.")
+
+    @app_commands.command(
+        name="skip",
+        description="Skip the current song.",
+    )
+    async def skip(self, interaction: Interaction):
+        player: wavelink.Player | None = interaction.guild.voice_client
+        if not player:
+            await interaction.response.send_message(
+                ":x: The bot is not connected to a voice channel.", ephemeral=True
+            )
+            return
+
+        if not player.playing:
+            await interaction.response.send_message(
+                ":x: No music is currently playing.", ephemeral=True
+            )
+            return
+
+        await player.skip()
+        await interaction.response.send_message(":track_next: Skipped.")
 
     @app_commands.command(
         name="queue",
-        description="Show the current music queue. Displays up to 10 items and indicates if there are more."
+        description="Show the current music queue. Displays up to 10 items and indicates if there are more.",
     )
     async def queue(self, interaction: Interaction):
-        guild_id = interaction.guild_id
-        if guild_id is None:
-            await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
+        player: wavelink.Player | None = interaction.guild.voice_client
+        if not player:
+            await interaction.response.send_message(
+                ":x: The music queue is currently empty."
+            )
             return
 
         queue_items = []
-        if guild_id in self.currently_playing:
-            _, title, duration = self.currently_playing[guild_id]
-            queue_items.append(f"**Now Playing:** {title} [{duration}]")
+        if player.current:
+            duration = self._format_duration(player.current.length)
+            queue_items.append(f"**Now Playing:** {player.current.title} [{duration}]")
 
-        if guild_id in self.queues and self.queues[guild_id]:
-            for i, (_, title, duration) in enumerate(self.queues[guild_id][:10]):
-                queue_items.append(f"{i+1}. {title} [{duration}]")
-            
-            if len(self.queues[guild_id]) > 10:
-                queue_items.append(f"\n...and {len(self.queues[guild_id]) - 10} more.")
+        if not player.queue.is_empty:
+            for i, track in enumerate(list(player.queue)[:10]):
+                duration = self._format_duration(track.length)
+                queue_items.append(f"{i + 1}. {track.title} [{duration}]")
+
+            if player.queue.count > 10:
+                queue_items.append(f"\n...and {player.queue.count - 10} more.")
 
         if not queue_items:
-            await interaction.response.send_message(":x: The music queue is currently empty.")
+            await interaction.response.send_message(
+                ":x: The music queue is currently empty."
+            )
         else:
             embed = Embed(
                 title=":notes: Music Queue",
@@ -276,42 +247,40 @@ class MusicCog(commands.Cog):
             )
             await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(
-        name="skip",
-        description="Skip the current song."
-    )
-    async def skip(self, interaction: Interaction):
-        guild_id = interaction.guild_id
-        if guild_id is None:
-            await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
-            return
-        if guild_id in self.voice_clients:
-            vc: VoiceClient = self.voice_clients[guild_id]
-            if vc.is_playing() or vc.is_paused():
-                vc.stop()
-                await interaction.response.send_message(":track_next: Skipped.")
-            else:
-                await interaction.response.send_message(":x: No music is currently playing.", ephemeral=True)
-        else:
-            await interaction.response.send_message(":x: The bot is not connected to a voice channel.", ephemeral=True)
-
     # NOTE: /nowplaying command is intentionally omitted.
     # By design, a message is already sent to the channel when a song starts playing.
 
     @app_commands.command(
         name="shuffle",
-        description="Shuffle the current music queue."
+        description="Shuffle the current music queue.",
     )
     async def shuffle(self, interaction: Interaction):
-        guild_id = interaction.guild_id
-        if guild_id is None:
-            await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
+        player: wavelink.Player | None = interaction.guild.voice_client
+        if not player or player.queue.is_empty:
+            await interaction.response.send_message(
+                ":x: The music queue is currently empty.", ephemeral=True
+            )
             return
-        if guild_id in self.queues and self.queues[guild_id]:
-            shuffle(self.queues[guild_id])
-            await interaction.response.send_message(":twisted_rightwards_arrows: Queue shuffled.")
-        else:
-            await interaction.response.send_message(":x: The music queue is currently empty.", ephemeral=True)
+
+        tracks = list(player.queue)
+        player.queue.clear()
+        shuffle_list(tracks)
+        for track in tracks:
+            await player.queue.put_wait(track)
+
+        await interaction.response.send_message(
+            ":twisted_rightwards_arrows: Queue shuffled."
+        )
+
+    @staticmethod
+    def _format_duration(ms: int) -> str:
+        seconds = ms // 1000
+        minutes, seconds = divmod(seconds, 60)
+        hours, minutes = divmod(minutes, 60)
+        if hours:
+            return f"{hours}:{minutes:02d}:{seconds:02d}"
+        return f"{minutes}:{seconds:02d}"
+
 
 async def setup(bot: "UiPy"):
     await bot.add_cog(MusicCog(bot))

@@ -7,11 +7,31 @@ services:
     environment:
       - TOKEN=${TOKEN}
       - STEAM_TOKEN=${STEAM_TOKEN}
+      - LAVALINK_URI=http://lavalink:2333
+      - LAVALINK_PASSWORD=${LAVALINK_PASSWORD:-youshallnotpass}
     volumes:
       - ui_db:/usr/src/app/data
+    depends_on:
+      lavalink:
+        condition: service_healthy
     # Label for updater to detect the service to update
     # labels:
     #   - "com.taichikuji.ui-py.enable=true"
+
+  lavalink:
+    image: ghcr.io/lavalink-devs/lavalink:4
+    container_name: lavalink
+    restart: unless-stopped
+    environment:
+      - SERVER_PORT=2333
+      - LAVALINK_SERVER_PASSWORD=${LAVALINK_PASSWORD:-youshallnotpass}
+    volumes:
+      - ./lavalink/application.yml:/opt/Lavalink/application.yml:ro
+    healthcheck:
+      test: "curl -sf http://localhost:2333/version || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Uncomment the following section to enable automatic updates on ui-py
   # updater:
