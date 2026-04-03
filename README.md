@@ -53,7 +53,17 @@ docker pull ghcr.io/taichikuji/ui-py:latest
 
 This image can even be used in your Kubernetes cluster!
 
-We don't have a Kubernetes deployment YAML at the moment, but one may be provided in the future.
+### 4. **Using Kubernetes**
+
+Apply the manifests from the `kubernetes/` directory. See [kubernetes/README.md](kubernetes/README.md) for full instructions.
+
+```bash
+cp .env.example .env
+nano .env  # Add your Discord token
+kubectl apply -f kubernetes/deployment.yml
+kubectl -n uipy create secret generic uipy-secret --from-env-file=.env
+kubectl -n uipy rollout restart deployment/uipy
+```
 
 ### Auto-Updater
 

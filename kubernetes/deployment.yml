@@ -1,0 +1,138 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: uipy
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lavalink-config
+  namespace: uipy
+data:
+  application.yml: |
+    server:
+      port: 2333
+      address: 0.0.0.0
+    lavalink:
+      server:
+        password: "${LAVALINK_SERVER_PASSWORD}"
+        sources:
+          youtube: true
+          bandcamp: true
+          soundcloud: true
+          twitch: true
+          vimeo: true
+          http: true
+          local: false
+        bufferDurationMs: 400
+        frameBufferDurationMs: 5000
+        youtubePlaylistLoadLimit: 6
+        playerUpdateInterval: 5
+        youtubeSearchEnabled: true
+        soundcloudSearchEnabled: true
+        gc-warnings: true
+    logging:
+      file:
+        path: ./logs/
+      level:
+        root: INFO
+        lavalink: INFO
+      logback:
+        rollingpolicy:
+          max-file-size: 25MB
+          max-history: 7
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: uipy-data
+  namespace: uipy
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: uipy
+  namespace: uipy
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: uipy
+  template:
+    metadata:
+      labels:
+        app: uipy
+    spec:
+      initContainers:
+        - name: lavalink
+          image: ghcr.io/lavalink-devs/lavalink:4
+          restartPolicy: Always
+          ports:
+            - containerPort: 2333
+          env:
+            - name: SERVER_PORT
+              value: "2333"
+            - name: LAVALINK_SERVER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: uipy-secret
+                  key: LAVALINK_PASSWORD
+          volumeMounts:
+            - name: lavalink-config
+              mountPath: /opt/Lavalink/application.yml
+              subPath: application.yml
+              readOnly: true
+          startupProbe:
+            httpGet:
+              path: /version
+              port: 2333
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: /version
+              port: 2333
+            periodSeconds: 15
+
+      containers:
+        - name: discord
+          image: ghcr.io/taichikuji/ui-py:latest
+          env:
+            - name: TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: uipy-secret
+                  key: TOKEN
+            - name: STEAM_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: uipy-secret
+                  key: STEAM_TOKEN
+                  optional: true
+            - name: LAVALINK_URI
+              value: "http://localhost:2333"
+            - name: LAVALINK_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: uipy-secret
+                  key: LAVALINK_PASSWORD
+          volumeMounts:
+            - name: data
+              mountPath: /usr/src/app/data
+
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: uipy-data
+        - name: lavalink-config
+          configMap:
+            name: lavalink-config

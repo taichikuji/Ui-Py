@@ -8,7 +8,7 @@ services:
       - TOKEN=${TOKEN}
       - STEAM_TOKEN=${STEAM_TOKEN}
       - LAVALINK_URI=http://lavalink:2333
-      - LAVALINK_PASSWORD=${LAVALINK_PASSWORD:-youshallnotpass}
+      - LAVALINK_PASSWORD=${LAVALINK_PASSWORD}
     volumes:
       - ui_db:/usr/src/app/data
     depends_on:
@@ -24,7 +24,7 @@ services:
     restart: unless-stopped
     environment:
       - SERVER_PORT=2333
-      - LAVALINK_SERVER_PASSWORD=${LAVALINK_PASSWORD:-youshallnotpass}
+      - LAVALINK_SERVER_PASSWORD=${LAVALINK_PASSWORD}
     volumes:
       - ./lavalink/application.yml:/opt/Lavalink/application.yml:ro
     healthcheck:
