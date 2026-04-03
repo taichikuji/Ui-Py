@@ -1,3 +1,4 @@
+import logging
 from time import localtime, strftime
 from typing import TYPE_CHECKING
 
@@ -6,6 +7,8 @@ from discord.ext import commands
 
 if TYPE_CHECKING:
     from main import UiPy
+
+logger = logging.getLogger(__name__)
 
 
 class LoaderCog(commands.Cog):
@@ -22,8 +25,10 @@ class LoaderCog(commands.Cog):
         """Load a bot extension."""
         try:
             await self.bot.load_extension(f"functions.{extension}")
-            print(
-                f"[INFO] LoaderCog: {extension} loaded at {strftime('%A, %d %b %Y, %I:%M:%S %p', localtime())}."
+            logger.info(
+                "%s loaded at %s.",
+                extension,
+                strftime("%A, %d %b %Y, %I:%M:%S %p", localtime()),
             )
             description = (
                 f":white_check_mark: Loaded extension '{extension}' successfully."
@@ -40,7 +45,7 @@ class LoaderCog(commands.Cog):
             description = f":x: Extension '{extension}' does not have a setup function."
         except Exception as e:
             description = f":x: An unexpected error occurred: {e}"
-            print(f"[ERROR] LoaderCog: {description}")
+            logger.error(description)
         await interaction.response.send_message(description, ephemeral=True)
 
     @app_commands.command(
@@ -59,7 +64,7 @@ class LoaderCog(commands.Cog):
             description = f":information_source: Extension '{extension}' is not loaded."
         except Exception as e:
             description = f":x: An unexpected error occurred: {e}"
-            print(f"[ERROR] LoaderCog: {description}")
+            logger.error(description)
         await interaction.response.send_message(description, ephemeral=True)
 
     @app_commands.command(
@@ -71,8 +76,10 @@ class LoaderCog(commands.Cog):
         """Reload a bot extension."""
         try:
             await self.bot.reload_extension(f"functions.{extension}")
-            print(
-                f"[INFO] LoaderCog: {extension} reloaded at {strftime('%A, %d %b %Y, %I:%M:%S %p', localtime())}."
+            logger.info(
+                "%s reloaded at %s.",
+                extension,
+                strftime("%A, %d %b %Y, %I:%M:%S %p", localtime()),
             )
             description = (
                 f":white_check_mark: Reloaded extension '{extension}' successfully."
@@ -89,7 +96,7 @@ class LoaderCog(commands.Cog):
             description = f":x: Extension '{extension}' does not have a setup function."
         except Exception as e:
             description = f":x: An unexpected error occurred: {e}"
-            print(f"[ERROR] LoaderCog: {description}")
+            logger.error(description)
         await interaction.response.send_message(description, ephemeral=True)
 
     @load.error
@@ -103,7 +110,7 @@ class LoaderCog(commands.Cog):
                 ephemeral=True
             )
         else:
-            print(f"[ERROR] LoaderCog: Unexpected error in command: {error}")
+            logger.error("Unexpected error in command: %s", error)
 
 async def setup(bot: "UiPy"):
     """Add the LoaderCog to the bot."""

@@ -1,3 +1,4 @@
+import logging
 from os import environ, makedirs, path
 from re import IGNORECASE, fullmatch, match
 from typing import TYPE_CHECKING
@@ -9,10 +10,12 @@ from discord.ext import commands
 if TYPE_CHECKING:
     from main import UiPy
 
+logger = logging.getLogger(__name__)
+
 try:
     STEAM_TOKEN = environ.get("STEAM_TOKEN")
 except Exception as e:
-    print(f"[ERROR] SteamCog: Failed to load STEAM_TOKEN from environment. {e}")
+    logger.error("Failed to load STEAM_TOKEN from environment. %s", e)
     STEAM_TOKEN = None
 
 class SteamCog(commands.Cog):
@@ -52,10 +55,10 @@ class SteamCog(commands.Cog):
 
     async def _resolve_steam_id(self, vanity_url_or_id: str) -> str | None:
         if not self.bot.session:
-            print("[ERROR] SteamCog: Bot aiohttp session is not initialized.")
+            logger.error("Bot aiohttp session is not initialized.")
             return None
         if not STEAM_TOKEN:
-            print("[ERROR] SteamCog: STEAM_TOKEN is not set. Cannot resolve Steam ID.")
+            logger.error("STEAM_TOKEN is not set. Cannot resolve Steam ID.")
             return None
         
         vanity_name = vanity_url_or_id
@@ -83,13 +86,13 @@ class SteamCog(commands.Cog):
                     if (response := data.get("response", {})) and response.get("success") == 1:
                         return response.get("steamid")
                     else:
-                        print(f"[INFO] SteamCog: Could not resolve vanity '{vanity_name}'. Message: {response.get('message', 'No message')}")
+                        logger.info("Could not resolve vanity '%s'. Message: %s", vanity_name, response.get('message', 'No message'))
                         return None 
                 else:
-                    print(f"[ERROR] SteamCog: Steam API error (ResolveVanityURL) - Status {resp.status}")
+                    logger.error("Steam API error (ResolveVanityURL) - Status %s", resp.status)
                     return None
         except Exception as e:
-            print(f"[ERROR] SteamCog: Exception during Steam ID resolution for '{vanity_name}': {e}")
+            logger.error("Exception during Steam ID resolution for '%s': %s", vanity_name, e)
             return None
         
         # Default return if no resolution
@@ -156,7 +159,7 @@ class SteamCog(commands.Cog):
                 params={"key": STEAM_TOKEN, "steamids": linked_steam_id}
             ) as resp:
                 if resp.status != 200:
-                    print(f"[ERROR] SteamCog: Steam API error (GetPlayerSummaries) - Status {resp.status}, Response: {await resp.text()}")
+                    logger.error("Steam API error (GetPlayerSummaries) - Status %s", resp.status)
                     await interaction.followup.send(
                         f":x: Error fetching your player summary from Steam (HTTP {resp.status}). "
                         "Your profile might be private or an API error occurred."
@@ -204,7 +207,7 @@ class SteamCog(commands.Cog):
             await interaction.followup.send(embed=embed)
 
         except Exception as e:
-            print(f"[ERROR] SteamCog - get_lobby command failed for user {interaction.user.id} (SteamID: {linked_steam_id}): {e}")
+            logger.error("get_lobby command failed for user %s (SteamID: %s): %s", interaction.user.id, linked_steam_id, e)
             await interaction.followup.send(
                 ":x: An unexpected error occurred while trying to fetch your lobby information."
             )

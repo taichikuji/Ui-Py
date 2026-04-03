@@ -1,3 +1,4 @@
+import logging
 from asyncio import get_running_loop, run_coroutine_threadsafe
 from gc import collect
 from random import shuffle
@@ -10,6 +11,8 @@ from yt_dlp import YoutubeDL
 
 if TYPE_CHECKING:
     from main import UiPy
+
+logger = logging.getLogger(__name__)
 
 
 class MusicCog(commands.Cog):
@@ -126,7 +129,7 @@ class MusicCog(commands.Cog):
                     info = info["entries"][0]
                 stream_url = info.get("url")
             except Exception as e:
-                print(f"[ERROR] Could not refresh URL for {title}: {e}")
+                logger.error("Could not refresh URL for %s: %s", title, e)
                 self._play_next(guild_id)
                 return
 
@@ -144,7 +147,7 @@ class MusicCog(commands.Cog):
                 vc.stop()
                 await vc.disconnect()
             except Exception as e:
-                print(f"[ERROR] MusicCog: Error during disconnect for guild {guild_id}: {e}")
+                logger.error("Error during disconnect for guild %s: %s", guild_id, e)
         self.queues.pop(guild_id, None)
         self.command_channels.pop(guild_id, None)
         self.currently_playing.pop(guild_id, None)
@@ -153,7 +156,7 @@ class MusicCog(commands.Cog):
 
     def _play_next(self, guild_id: int, error=None):
         if error:
-            print(f"[ERROR] MusicCog: Player error for guild {guild_id}: {error}")
+            logger.error("Player error for guild %s: %s", guild_id, error)
 
         if guild_id not in self.voice_clients or not self.voice_clients[guild_id].is_connected():
             return

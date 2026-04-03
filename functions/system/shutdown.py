@@ -1,3 +1,4 @@
+import logging
 from typing import TYPE_CHECKING
 
 from discord import Interaction, app_commands
@@ -5,6 +6,8 @@ from discord.ext import commands
 
 if TYPE_CHECKING:
     from main import UiPy
+
+logger = logging.getLogger(__name__)
 
 
 class CloseCog(commands.Cog):
@@ -27,7 +30,7 @@ class CloseCog(commands.Cog):
         try:
             await interaction.client.close()
         except Exception as e:
-            print(f"[ERROR] ShutdownCog: Failed to shut down the bot: {e}")
+            logger.error("Failed to shut down the bot: %s", e)
 
     @shutdown_bot.error
     async def on_shutdown_error(self, interaction: Interaction, error: app_commands.AppCommandError) -> None:
@@ -38,7 +41,7 @@ class CloseCog(commands.Cog):
                 ephemeral=True
             )
         else:
-            print(f"[ERROR] ShutdownCog: Unexpected error in shutdown command: {error}")
+            logger.error("Unexpected error in shutdown command: %s", error)
 
 
 async def setup(bot: "UiPy"):

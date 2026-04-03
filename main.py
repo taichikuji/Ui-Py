@@ -1,3 +1,4 @@
+import logging
 from glob import iglob
 from os import environ, sep
 
@@ -5,8 +6,14 @@ from aiohttp import ClientSession
 from discord import Activity, ActivityType, Intents
 from discord.ext import commands
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger("UiPy")
+
 if (TOKEN := environ.get("TOKEN")) is None:
-    raise OSError("[ERROR] TOKEN environment variable not set")
+    raise OSError("TOKEN environment variable not set")
 
 
 class UiPy(commands.AutoShardedBot):
@@ -30,13 +37,13 @@ class UiPy(commands.AutoShardedBot):
             module = functions.replace(".py", "").replace(sep, ".")
             try:
                 await self.load_extension(module)
-                print(f"[INFO] Loaded {module}")
+                logger.info("Loaded %s", module)
             except ImportError:
-                print(f"[ERROR] Extension import failure! [{module}]")
+                logger.error("Extension import failure! [%s]", module)
             except commands.errors.ExtensionFailed:
-                print(f"[ERROR] Extension failed! [{module}]")
+                logger.error("Extension failed! [%s]", module)
             except Exception:
-                print(f"[ERROR] Unexpected exception! [{module}]")
+                logger.error("Unexpected exception! [%s]", module)
 
     async def on_ready(self):
         assert self.user is not None, "self.user is None in on_ready!"
@@ -44,27 +51,27 @@ class UiPy(commands.AutoShardedBot):
             name="Ping me, or use Slash Commands!", type=ActivityType.listening
         )
         await self.change_presence(activity=display)
-        print(f"[INFO] Ui Online! - {self.user.name} {self.user.id}")
+        logger.info("Ui Online! - %s %s", self.user.name, self.user.id)
 
     async def close(self):
         try:
             if self.session is not None:
                 await self.session.close()
             await super().close()
-            print("[INFO] Session closed!")
+            logger.info("Session closed!")
         except Exception as e:
-            print(f"[ERROR] Failed to close aiohttp session - {e}")
+            logger.error("Failed to close aiohttp session - %s", e)
             raise
 
     def run(self, *args, **kwargs):
         try:
             super().run(str(self._bot_token), reconnect=True, *args, **kwargs)
         except TypeError:
-            print("[ERROR] An unexpected keyword argument was passed!")
+            logger.error("An unexpected keyword argument was passed!")
         except Exception as e:
-            print(f"[ERROR] An exception occurred: {e}")
+            logger.error("An exception occurred: %s", e)
 
 
 if __name__ == "__main__":
-    print("[INFO] Starting Ui-Py...")
+    logger.info("Starting Ui-Py...")
     UiPy().run()

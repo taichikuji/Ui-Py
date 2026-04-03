@@ -1,3 +1,4 @@
+import logging
 from os import makedirs, path
 from typing import TYPE_CHECKING
 
@@ -10,6 +11,8 @@ from discord.ui import Button, Modal, TextInput, View, button
 
 if TYPE_CHECKING:
     from main import UiPy
+
+logger = logging.getLogger(__name__)
 
 
 class VoiceControlView(View):
@@ -166,7 +169,7 @@ class LobbyCog(commands.Cog):
                 ephemeral=True,
             )
         else:
-            print(f"[ERROR] LobbyCog: Unexpected error in set command: {error}")
+            logger.error("Unexpected error in set command: %s", error)
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: Member, before: VoiceState, after: VoiceState) -> None:
@@ -208,7 +211,7 @@ class LobbyCog(commands.Cog):
             )
             await new_channel.send(embed=embed, view=VoiceControlView(new_channel, member))
         except Exception as e:
-            print(f"[ERROR] LobbyCog: Failed to set up lobby for {member.display_name}: {e}")
+            logger.error("Failed to set up lobby for %s: %s", member.display_name, e)
             self.active_channels.discard(new_channel.id)
             await new_channel.delete()
 

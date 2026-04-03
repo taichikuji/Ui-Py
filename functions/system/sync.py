@@ -1,3 +1,4 @@
+import logging
 from typing import TYPE_CHECKING
 
 from discord import Guild, HTTPException
@@ -5,6 +6,8 @@ from discord.ext import commands
 
 if TYPE_CHECKING:
     from main import UiPy
+
+logger = logging.getLogger(__name__)
 
 
 class SyncCog(commands.Cog):
@@ -112,7 +115,7 @@ class SyncCog(commands.Cog):
             else:
                 await ctx.send(msg)
         else:
-            print(f"[ERROR] SyncCog: Unexpected error in sync command: {error}")
+            logger.error("Unexpected error in sync command: %s", error)
 
 async def setup(bot: "UiPy"):
     """Add the SyncCog to the bot."""

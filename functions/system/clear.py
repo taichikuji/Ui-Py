@@ -1,3 +1,4 @@
+import logging
 from typing import TYPE_CHECKING
 
 from discord import Interaction, Member, TextChannel, Thread, app_commands
@@ -5,6 +6,8 @@ from discord.ext import commands
 
 if TYPE_CHECKING:
     from main import UiPy
+
+logger = logging.getLogger(__name__)
 
 
 class ClearCog(commands.Cog):
@@ -46,7 +49,7 @@ class ClearCog(commands.Cog):
                 ephemeral=True
             )
         else:
-            print(f"[ERROR] ClearCog: An unexpected error occurred: {error}")
+            logger.error("An unexpected error occurred: %s", error)
 
 
 async def setup(bot: "UiPy"):
