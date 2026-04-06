@@ -19,5 +19,5 @@ WORKDIR /workspace
 
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD docker info > /dev/null 2>&1 || exit 1
+  CMD ["test", "-S", "/var/run/docker.sock"]
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
