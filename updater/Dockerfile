@@ -17,4 +17,7 @@ RUN chmod +x /usr/local/bin/updater.sh /usr/local/bin/entrypoint.sh
 
 WORKDIR /workspace
 
-CMD ["/usr/local/bin/entrypoint.sh"]
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD docker info > /dev/null 2>&1 || exit 1
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

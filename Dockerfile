@@ -29,4 +29,7 @@ RUN ldconfig
 COPY main.py ./
 COPY functions ./functions/
 
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD ["python", "-c", "import socket; socket.create_connection(('discord.com', 443), timeout=5)"]
+
 CMD ["python", "./main.py"]
