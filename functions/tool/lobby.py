@@ -146,7 +146,8 @@ class LobbyCog(commands.Cog):
     @app_commands.guild_only()
     @app_commands.checks.has_permissions(manage_channels=True)
     async def set_generator(self, interaction: Interaction, channel: VoiceChannel | None = None) -> None:
-      await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer(ephemeral=True)
+
         if channel is None:
             if interaction.guild_id not in self.generators:
                 await interaction.followup.send(
@@ -166,13 +167,13 @@ class LobbyCog(commands.Cog):
     @set_generator.error
     async def on_set_generator_error(self, interaction: Interaction, error: app_commands.AppCommandError) -> None:
         if isinstance(error, app_commands.errors.MissingPermissions):
-          msg = ":x: You need Manage Channels permissions to configure the lobby generator."
-          if interaction.response.is_done():
-            await interaction.followup.send(msg, ephemeral=True)
-          else:
-            await interaction.response.send_message(msg, ephemeral=True)
+            msg = ":x: You need Manage Channels permissions to configure the lobby generator."
+            if interaction.response.is_done():
+                await interaction.followup.send(msg, ephemeral=True)
+            else:
+                await interaction.response.send_message(msg, ephemeral=True)
         else:
-          logger.error("Unexpected error in set command: %s", error)
+            logger.error("Unexpected error in set command: %s", error)
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: Member, before: VoiceState, after: VoiceState) -> None:
