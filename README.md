@@ -1,7 +1,7 @@
 # Ui-Py
 ## Who is Ui?
 
-Ui is a bot written in Python, inspired by the character Ui Hirasawa from the K-On! show.
+Ui is a bot written in Python, inspired by the character Ui Hirasawa from the K-On! show
 
 <p align="center"><img src="media/ui.webp" width="150px" /><br/>
 <img src="https://img.shields.io/github/license/taichikuji/Ui-Py?color=FF3351&logo=github" />
@@ -11,7 +11,7 @@ Ui is a bot written in Python, inspired by the character Ui Hirasawa from the K-
 
 ## Why Python?
 
-Because this is a rewrite and retry at writing best practices code in Python, keeping modularity as it was with my previous projects.
+Because this is a rewrite and retry at writing best practices code in Python, keeping modularity as it was with my previous projects
 
 ## How do I make it work?
 
@@ -53,16 +53,16 @@ docker pull ghcr.io/taichikuji/ui-py:latest
 
 This image can even be used in your Kubernetes cluster!
 
-We don't have a Kubernetes deployment YAML at the moment, but one may be provided in the future.
+We don't have a Kubernetes deployment YAML at the moment, but one may be provided in the future
 
 ### Auto-Updater
 
 To enable automatic updates, uncomment the `updater` service and the `labels` section in `docker-compose.yml`.
-You can change the update frequency by modifying the `CRON_SCHEDULE` environment variable (default: `0 0 * * *` for daily checks).
+You can change the update frequency by modifying the `CRON_SCHEDULE` environment variable (default: `0 0 * * *` for daily checks)
 
 ## Contributing
 
-The project follows a modular architecture, making it easy to add new features. New functionality can be added by creating new Python files in the appropriate directories under `functions/`.
+The project follows a modular architecture, making it easy to add new features. New functionality can be added by creating new Python files in the appropriate directories under `functions/`
 
 We welcome contributions from the community! When contributing, GitHub will automatically provide:
 - Bug report template when reporting bugs
