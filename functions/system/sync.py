@@ -11,100 +11,49 @@ logger = logging.getLogger(__name__)
 
 
 class SyncCog(commands.Cog):
-    """Cog for syncing application commands globally or per guild (admin only)."""
+    """Cog for syncing application commands."""
+
     def __init__(self, bot: "UiPy"):
         self.bot = bot
 
-    @commands.hybrid_group(
+    async def _sync_scope(self, guild: Guild | None = None) -> str:
+        """Sync commands for specific scope and return result message."""
+        scope_name = f"guild {guild.id}" if guild else "globally"
+        try:
+            synced = await self.bot.tree.sync(guild=guild)
+            count = len(synced)
+            return f"Synced {count} commands {scope_name}." if count else f"No commands synced {scope_name}."
+        except HTTPException as e:
+            return f"Failed sync {scope_name}: {e.status} {getattr(e, 'text', '')}"
+        except Exception as e:
+            return f"Error sync {scope_name}: {e}"
+
+    @commands.hybrid_command(
         name="sync",
-        description="Sync application commands (Admin Only)",
+        description="Sync application commands globally and to current guild (Admin Only)."
     )
     @commands.has_permissions(administrator=True)
     async def sync(self, ctx: commands.Context) -> None:
-        """Base sync command group."""
-        if ctx.invoked_subcommand is None:
-            await ctx.send(
-                "Please specify a subcommand: `global` or `guild`.\n"
-                "(e.g., `/sync guild` or `@BotName sync global`)"
-            )
-
-    @sync.command(
-        name="global", 
-        description="Sync commands globally (can take up to an hour)."
-    )
-    @commands.has_permissions(administrator=True)
-    async def sync_global(self, ctx: commands.Context) -> None:
-        """Sync commands globally."""
+        """Sync commands globally and guild-specific."""
         is_slash = ctx.interaction is not None
         if is_slash:
             await ctx.defer(ephemeral=True)
-        try:
-            if synced_commands := await self.bot.tree.sync():
-                msg = f"Synced {len(synced_commands)} commands globally."
-            else:
-                msg = "No commands were synced globally."
-            if is_slash and ctx.interaction:
-                await ctx.interaction.followup.send(msg, ephemeral=True)
-            else:
-                await ctx.send(msg)
-        except HTTPException as e:
-            msg = f"Failed to sync globally: {e.status} {getattr(e, 'text', 'No additional information')}"
-            if is_slash and ctx.interaction:
-                await ctx.interaction.followup.send(msg, ephemeral=True)
-            else:
-                await ctx.send(msg)
-        except Exception as e:
-            msg = f"An unexpected error occurred during global sync: {e}"
-            if is_slash and ctx.interaction:
-                await ctx.interaction.followup.send(msg, ephemeral=True)
-            else:
-                await ctx.send(msg)
 
-    @sync.command(
-        name="guild", 
-        description="Sync commands to the current guild (usually instant)."
-    )
-    @commands.has_permissions(administrator=True)
-    async def sync_guild(self, ctx: commands.Context) -> None:
-        """Sync commands to the current guild."""
-        is_slash = ctx.interaction is not None
-        if is_slash:
-            await ctx.defer(ephemeral=True)
-        if not ctx.guild:
-            err_msg = "This command can only be used in a server."
-            if is_slash and ctx.interaction:
-                await ctx.interaction.followup.send(err_msg, ephemeral=True)
-            else:
-                await ctx.send(err_msg)
-            return
-        target_guild_object: Guild = ctx.guild
-        try:
-            if synced_commands_list := await self.bot.tree.sync(guild=target_guild_object):
-                msg = f"Synced {len(synced_commands_list)} commands to guild {target_guild_object.id}"
-            else:
-                msg = f"No application commands were synced to guild {target_guild_object.id}"
-            if is_slash and ctx.interaction:
-                await ctx.interaction.followup.send(msg, ephemeral=True)
-            else:
-                await ctx.send(msg)
-        except HTTPException as e:
-            msg = (
-                f"Failed to sync to guild {target_guild_object.id}: {e.status} {e.text}"
-            )
-            if is_slash and ctx.interaction:
-                await ctx.interaction.followup.send(msg, ephemeral=True)
-            else:
-                await ctx.send(msg)
-        except Exception as e:
-            msg = f"An unexpected error occurred during guild sync for guild {target_guild_object.id}: {e}"
-            if is_slash and ctx.interaction:
-                await ctx.interaction.followup.send(msg, ephemeral=True)
-            else:
-                await ctx.send(msg)
+        global_msg = await self._sync_scope()
+        
+        if ctx.guild:
+            guild_msg = await self._sync_scope(ctx.guild)
+        else:
+            guild_msg = "Skipped guild sync (not in server)."
+
+        final_msg = f"{global_msg}\n{guild_msg}\n\n**Note:** Restart Discord client to see changes."
+
+        if is_slash and ctx.interaction:
+            await ctx.interaction.followup.send(final_msg, ephemeral=True)
+        else:
+            await ctx.send(final_msg)
 
     @sync.error
-    @sync_global.error
-    @sync_guild.error
     async def on_sync_error(self, ctx: commands.Context, error: commands.CommandError) -> None:
         """Handle errors for the sync command."""
         is_slash = ctx.interaction is not None
