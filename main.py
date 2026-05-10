@@ -49,7 +49,7 @@ class UiPy(commands.AutoShardedBot):
     async def on_ready(self):
         assert self.user is not None, "self.user is None in on_ready!"
         display = Activity(
-            name="Ping me, or use Slash Commands!", type=ActivityType.listening
+            name="Use /help to view all commands!", type=ActivityType.listening
         )
         await self.change_presence(activity=display)
         logger.info("Ui Online! - %s %s", self.user.name, self.user.id)
