@@ -1,6 +1,5 @@
 import logging
 from asyncio import get_running_loop, run_coroutine_threadsafe
-from gc import collect
 from random import shuffle
 from typing import TYPE_CHECKING
 
@@ -151,8 +150,6 @@ class MusicCog(commands.Cog):
         self.queues.pop(guild_id, None)
         self.command_channels.pop(guild_id, None)
         self.currently_playing.pop(guild_id, None)
-        # Manual GC collection: prevents memory buildup during extended bot uptime.
-        await get_running_loop().run_in_executor(None, collect)
 
     def _play_next(self, guild_id: int, error=None):
         if error:
