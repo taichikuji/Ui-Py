@@ -63,7 +63,7 @@ class SteamCog(commands.Cog):
         
         vanity_name = vanity_url_or_id
         # regex to extract vanity name from Steam URL
-        if profile_match := match(r"(?:https?://)?steamcommunity\\.com/(?:id/([^/]+)|profiles/(\\d{17}))/?", vanity_url_or_id, IGNORECASE):
+        if profile_match := match(r"(?:https?://)?steamcommunity\.com/(?:id/([^/]+)|profiles/(\d{17}))/?", vanity_url_or_id, IGNORECASE):
             # matches id url
             if id_part := profile_match.group(1):
                 vanity_name = id_part
@@ -72,7 +72,7 @@ class SteamCog(commands.Cog):
                 return profiles_part
             
         # confirm if input is indeed SteamID64 after extraction
-        if fullmatch(r"\\d{17}", vanity_name):
+        if fullmatch(r"\d{17}", vanity_name):
             return vanity_name
         
         try:
