@@ -20,23 +20,22 @@ class SyncCog(commands.Cog):
         """Sync commands for specific scope and return result message."""
         scope_name = f"guild {guild.id}" if guild else "globally"
         try:
-            synced = await self.bot.tree.sync(guild=guild)
-            count = len(synced)
-            return f"Synced {count} commands {scope_name}." if count else f"No commands synced {scope_name}."
+            if count := len(await self.bot.tree.sync(guild=guild)):
+                return f"Synced {count} commands {scope_name}."
+            return f"No commands synced {scope_name}."
         except HTTPException as e:
             return f"Failed sync {scope_name}: {e.status} {getattr(e, 'text', '')}"
         except Exception as e:
             return f"Error sync {scope_name}: {e}"
 
-    @commands.hybrid_command(
+    @commands.hybrid_command(  # type: ignore
         name="sync",
         description="Sync application commands globally and to current guild (Admin Only)."
     )
     @commands.has_permissions(administrator=True)
     async def sync(self, ctx: commands.Context) -> None:
         """Sync commands globally and guild-specific."""
-        is_slash = ctx.interaction is not None
-        if is_slash:
+        if is_slash := ctx.interaction is not None:
             await ctx.defer(ephemeral=True)
 
         global_msg = await self._sync_scope()
@@ -56,10 +55,9 @@ class SyncCog(commands.Cog):
     @sync.error
     async def on_sync_error(self, ctx: commands.Context, error: commands.CommandError) -> None:
         """Handle errors for the sync command."""
-        is_slash = ctx.interaction is not None
         if isinstance(error, commands.MissingPermissions):
             msg = ":x: You need Administrator permissions to run this command."
-            if is_slash and ctx.interaction:
+            if (is_slash := ctx.interaction is not None) and ctx.interaction:
                 await ctx.interaction.response.send_message(msg, ephemeral=True)
             else:
                 await ctx.send(msg)

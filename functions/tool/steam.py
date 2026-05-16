@@ -113,9 +113,7 @@ class SteamCog(commands.Cog):
             )
             return
         
-        steam_id = await self._resolve_steam_id(steam_identifier.strip())
-
-        if not steam_id:
+        if not (steam_id := await self._resolve_steam_id(steam_identifier.strip())):
             await interaction.followup.send(
                 f":x: Could not resolve '{steam_identifier}' to a valid SteamID64. \\\\n"
                 "You can use https://www.steamidfinder.com/ to find your SteamID64 or vanity URL."
@@ -184,8 +182,7 @@ class SteamCog(commands.Cog):
                 )
                 return
             
-            lobby_id = player_info.get("lobbysteamid")
-            if not lobby_id or lobby_id == "0":
+            if not (lobby_id := player_info.get("lobbysteamid")) or lobby_id == "0":
                 await interaction.followup.send(
                     f":information_source: You are currently playing **{game_name}** (AppID: `{app_id}`), "
                     "but you don't seem to be in a joinable lobby, or your lobby details are private."

@@ -20,8 +20,8 @@ class VotekickView(View):
         self.required_votes = required_votes
         self.author = author
         self.target = target
-        self.yes_votes = set()
-        self.no_votes = set()
+        self.yes_votes: set[int] = set()
+        self.no_votes: set[int] = set()
         self.message: Optional[Message] = None
 
     def has_voted(self, user_id: int) -> bool:
@@ -75,12 +75,10 @@ class VotekickView(View):
                 except Exception:
                     logger.error("Failed to move %s during votekick.", self.target)
                 
-                overwrite = PermissionOverwrite()
-                overwrite.connect = False
+                overwrite = PermissionOverwrite(connect=False)
                 await original_channel.set_permissions(self.target, overwrite=overwrite)
                 
-                cog = self.bot.get_cog("ModerationCog")
-                if isinstance(cog, ModerationCog):
+                if isinstance(cog := self.bot.get_cog("ModerationCog"), ModerationCog):
                     self.bot.loop.create_task(cog.unban_after_delay(self.target, original_channel, 60))
 
 
@@ -98,7 +96,7 @@ class ModerationCog(commands.Cog):
     """Cog for moderation commands."""
     def __init__(self, bot: "UiPy"):
         self.bot = bot
-        self.votekicks = {}
+        self.votekicks: dict[int, Message] = {}
 
     async def unban_after_delay(self, member: Member, channel, delay: int):
         await sleep(delay)
@@ -113,16 +111,15 @@ class ModerationCog(commands.Cog):
             await interaction.response.send_message(":x: This command can only be used in a server.", ephemeral=True)
             return
 
-        author = interaction.user
-        if not isinstance(author, Member):
+        if not isinstance(author := interaction.user, Member):
             await interaction.response.send_message(":x: You must be a member of this server to use this command.", ephemeral=True)
             return
 
-        if not author.voice or not author.voice.channel:
+        if not (author_voice := author.voice) or not (voice_channel := author_voice.channel):
             await interaction.response.send_message(":x: You must be in a voice channel to start a votekick.", ephemeral=True)
             return
 
-        if not member.voice or member.voice.channel != author.voice.channel:
+        if not (member_voice := member.voice) or member_voice.channel != voice_channel:
             await interaction.response.send_message(f":x: {member.mention} is not in your voice channel.", ephemeral=True)
             return
 
@@ -138,7 +135,6 @@ class ModerationCog(commands.Cog):
             await interaction.response.send_message(f":x: A votekick for {member.mention} is already in progress.", ephemeral=True)
             return
 
-        voice_channel = author.voice.channel
         member_count = sum(1 for m in voice_channel.members if not m.bot and m.id != member.id)
         required_votes = (member_count * 2 + 2) // 3
 

@@ -3,7 +3,7 @@ from os import makedirs, path
 from typing import TYPE_CHECKING
 
 from aiosqlite import connect
-from discord import (ButtonStyle, Embed, Interaction, Member,
+from discord import (ButtonStyle, Embed, Interaction, Member, Role, StageChannel, Object,
                      PermissionOverwrite, VoiceChannel, VoiceState,
                      app_commands)
 from discord.ext import commands
@@ -31,23 +31,27 @@ class VoiceControlView(View):
 
     @button(label="Lock", style=ButtonStyle.red)
     async def lock_channel(self, interaction: Interaction, button: Button) -> None:
+        if interaction.guild is None: return
         overwrite = self.channel.overwrites_for(interaction.guild.default_role)
         overwrite.connect = False
         await self.channel.set_permissions(interaction.guild.default_role, overwrite=overwrite)
 
         button.disabled = True
-        self.children[1].disabled = False
+        if isinstance(btn2 := self.children[1], Button):
+            btn2.disabled = False
         await interaction.response.edit_message(view=self)
         await interaction.followup.send(":lock: Channel locked.", ephemeral=True)
 
     @button(label="Unlock", style=ButtonStyle.green, disabled=True)
     async def unlock_channel(self, interaction: Interaction, button: Button) -> None:
+        if interaction.guild is None: return
         overwrite = self.channel.overwrites_for(interaction.guild.default_role)
         overwrite.connect = None
         await self.channel.set_permissions(interaction.guild.default_role, overwrite=overwrite)
 
         button.disabled = True
-        self.children[0].disabled = False
+        if isinstance(btn1 := self.children[0], Button):
+            btn1.disabled = False
         await interaction.response.edit_message(view=self)
         await interaction.followup.send(":unlock: Channel unlocked.", ephemeral=True)
 
@@ -57,7 +61,7 @@ class VoiceControlView(View):
 
 
 class RenameModal(Modal, title="Rename Channel"):
-    name = TextInput(label="New Name", placeholder="My Cool Channel", min_length=1, max_length=100)
+    name: TextInput = TextInput(label="New Name", placeholder="My Cool Channel", min_length=1, max_length=100)
 
     def __init__(self, channel: VoiceChannel):
         super().__init__()
@@ -115,8 +119,7 @@ class LobbyCog(commands.Cog):
             self._lobbies_cleaned = True
 
     async def _cleanup_ghost_lobbies(self):
-        ghost_ids = {cid for cid in self.active_channels if self.bot.get_channel(cid) is None}
-        if ghost_ids:
+        if ghost_ids := {cid for cid in self.active_channels if self.bot.get_channel(cid) is None}:
             logger.info("Cleaning up %d ghost lobby channel(s).", len(ghost_ids))
             async with connect(self.bot.db_path) as db:
                 await db.executemany("DELETE FROM lobby_active WHERE channel_id = ?", [(cid,) for cid in ghost_ids])
@@ -147,19 +150,21 @@ class LobbyCog(commands.Cog):
     @app_commands.checks.has_permissions(manage_channels=True)
     async def set_generator(self, interaction: Interaction, channel: VoiceChannel | None = None) -> None:
         await interaction.response.defer(ephemeral=True)
+        if (guild_id := interaction.guild_id) is None:
+            return
 
         if channel is None:
-            if interaction.guild_id not in self.generators:
+            if guild_id not in self.generators:
                 await interaction.followup.send(
                     ":x: No lobby generator is set for this server.", ephemeral=True
                 )
                 return
-            await self._remove_generator(interaction.guild_id)
+            await self._remove_generator(guild_id)
             await interaction.followup.send(
                 ":white_check_mark: Lobby generator cleared.", ephemeral=True
             )
         else:
-            await self._save_generator(interaction.guild_id, channel.id)
+            await self._save_generator(guild_id, channel.id)
             await interaction.followup.send(
                 f":white_check_mark: **{channel.name}** is now the lobby generator.", ephemeral=True
             )
@@ -187,9 +192,9 @@ class LobbyCog(commands.Cog):
         if after.channel and after.channel.id == self.generators.get(after.channel.guild.id):
             await self._create_lobby(member, after.channel)
 
-    async def _create_lobby(self, member: Member, generator: VoiceChannel) -> None:
+    async def _create_lobby(self, member: Member, generator: VoiceChannel | StageChannel) -> None:
         guild = member.guild
-        overwrites = {
+        overwrites: dict[Role | Member | Object, PermissionOverwrite] = {
             guild.default_role: PermissionOverwrite(connect=True),
             member: PermissionOverwrite(connect=True, move_members=True, manage_channels=True),
         }
@@ -219,7 +224,7 @@ class LobbyCog(commands.Cog):
             self.active_channels.discard(new_channel.id)
             await new_channel.delete()
 
-    async def _delete_lobby(self, channel: VoiceChannel) -> None:
+    async def _delete_lobby(self, channel: VoiceChannel | StageChannel) -> None:
         try:
             await channel.delete(reason="Dynamic channel empty")
         except Exception as e:
