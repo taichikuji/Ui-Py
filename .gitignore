@@ -184,5 +184,3 @@ mi.mhtml
 data/*.sqlite
 # Project preview directory
 functions_preview/
-# test suite
-tests/
