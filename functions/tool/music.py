@@ -96,7 +96,7 @@ class MusicCog(commands.Cog):
             await interaction.followup.send(f":x: Failed to retrieve video. Error: {e}", ephemeral=True)
             return
 
-        if not isinstance(channel := interaction.channel, (TextChannel, VoiceChannel)):
+        if not isinstance(channel := interaction.channel, (TextChannel, VoiceChannel, Thread)):
             await interaction.followup.send(":x: This command must be used in a text channel.", ephemeral=True)
             return
 
@@ -118,6 +118,14 @@ class MusicCog(commands.Cog):
     def _search_source(self, query: str):
         with YoutubeDL(self.ydl_opts) as ydl:
             return ydl.extract_info(query, download=False)
+
+    async def _play_next_track_and_announce(self, guild_id: int, webpage_url: str, title: str, duration: str):
+        started = await self._play_song(guild_id, webpage_url, None, title, duration)
+        if not started:
+            return
+
+        if guild_id in self.command_channels and (channel := self.command_channels[guild_id]):
+            await channel.send(f":notes: Now playing: **{title}** [{duration}]")
 
     async def _ensure_user_in_same_voice_channel(self, interaction: Interaction, guild_id: int) -> VoiceClient | None:
         if not isinstance(user := interaction.user, Member):
@@ -204,12 +212,8 @@ class MusicCog(commands.Cog):
         if guild_id in self.queues and self.queues[guild_id]:
             webpage_url, title, duration = self.queues[guild_id].pop(0)
             
-            coro = self._play_song(guild_id, webpage_url, None, title, duration)
+            coro = self._play_next_track_and_announce(guild_id, webpage_url, title, duration)
             run_coroutine_threadsafe(coro, self.bot.loop)
-
-            if guild_id in self.command_channels and (channel := self.command_channels[guild_id]):
-                msg_coro = channel.send(f":notes: Now playing: **{title}** [{duration}]")
-                run_coroutine_threadsafe(msg_coro, self.bot.loop)
         else:
             self.currently_playing.pop(guild_id, None)
             run_coroutine_threadsafe(self._disconnect_and_cleanup(guild_id), self.bot.loop)
@@ -285,17 +289,18 @@ class MusicCog(commands.Cog):
             await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
             return
 
+        max_display = 10
         queue_items = []
         if guild_id in self.currently_playing:
             _, title, duration = self.currently_playing[guild_id]
             queue_items.append(f"**Now Playing:** {title} [{duration}]")
 
         if guild_id in self.queues and self.queues[guild_id]:
-            for i, (_, title, duration) in enumerate(self.queues[guild_id][:10]):
+            for i, (_, title, duration) in enumerate(self.queues[guild_id][:max_display]):
                 queue_items.append(f"{i+1}. {title} [{duration}]")
             
-            if len(self.queues[guild_id]) > 10:
-                queue_items.append(f"\n...and {len(self.queues[guild_id]) - 10} more.")
+            if len(self.queues[guild_id]) > max_display:
+                queue_items.append(f"\n...and {len(self.queues[guild_id]) - max_display} more.")
 
         if not queue_items:
             await interaction.response.send_message(":x: The music queue is currently empty.")
