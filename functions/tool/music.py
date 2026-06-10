@@ -79,6 +79,8 @@ class MusicCog(commands.Cog):
                 None, self._search_source, query
             ):
                 if "entries" in info:
+                    if not info["entries"]:
+                        raise ValueError("No results found.")
                     info = info["entries"][0]
                 
                 stream_url = info.get("url")
@@ -145,6 +147,8 @@ class MusicCog(commands.Cog):
             try:
                 info = await get_running_loop().run_in_executor(None, self._search_source, webpage_url)
                 if "entries" in info:
+                    if not info["entries"]:
+                        raise ValueError("No results found while refreshing stream URL.")
                     info = info["entries"][0]
                 stream_url = info.get("url")
             except Exception as e:
