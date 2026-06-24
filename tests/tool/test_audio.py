@@ -52,9 +52,10 @@ class DummyLoop:
 
 
 class DummyResponse:
-    def __init__(self, payload, status=200):
+    def __init__(self, payload, status=200, headers=None):
         self.payload = payload
         self.status = status
+        self.headers = headers or {}
 
     async def __aenter__(self):
         return self
@@ -71,7 +72,7 @@ class DummySession:
         self.responses = list(responses)
         self.calls: list[tuple[str, dict | None]] = []
 
-    def get(self, url, params=None, timeout=10):
+    def get(self, url, params=None, timeout=10, **kwargs):
         self.calls.append((url, params))
         payload = self.responses.pop(0)
         if isinstance(payload, DummyResponse):
@@ -87,7 +88,9 @@ def _make_interaction(*, user, guild_id=1):
     return SimpleNamespace(
         guild_id=guild_id,
         user=user,
-        response=SimpleNamespace(send_message=AsyncMock()),
+        channel=object(),
+        response=SimpleNamespace(defer=AsyncMock(), send_message=AsyncMock()),
+        followup=SimpleNamespace(send=AsyncMock()),
     )
 
 
@@ -188,11 +191,10 @@ async def test_resolve_radio_station_with_channel_id():
     session = DummySession([{"data": {"title": "Mataro Radio", "url": "/listen/mataroradio/sFtKSe5I"}}])
     cog = AudioCog(_make_bot(session=session))
 
-    channel_id, title, listen_url = await cog._resolve_radio_station("sFtKSe5I", "Barcelona")
+    channel_id, title = await cog._resolve_radio_station("sFtKSe5I", "Barcelona")
 
     assert channel_id == "sFtKSe5I"
     assert title == "Mataro Radio"
-    assert listen_url == "https://radio.garden/listen/mataroradio/sFtKSe5I"
 
 
 @pytest.mark.asyncio
@@ -204,8 +206,32 @@ async def test_resolve_radio_station_falls_back_to_search():
                 "hits": {
                     "hits": [
                         {"_source": {"type": "place", "title": "Barcelona", "url": "/map/barcelona"}},
-                        {"_source": {"type": "channel", "title": "Flaixbac", "subtitle": "Madrid, Spain", "url": "/listen/flaixbac/aaaa1111"}},
-                        {"_source": {"type": "channel", "title": "Flaixbac", "subtitle": "Barcelona, Spain", "url": "/listen/flaixbac/sFtKSe5I"}},
+                        {
+                            "_source": {
+                                "type": "channel",
+                                "page": {
+                                    "type": "channel",
+                                    "title": "Flaixbac",
+                                    "subtitle": "Madrid, Spain",
+                                    "url": "/listen/flaixbac/aaaa1111",
+                                    "place": {"title": "Madrid"},
+                                    "country": {"title": "Spain"},
+                                },
+                            }
+                        },
+                        {
+                            "_source": {
+                                "type": "channel",
+                                "page": {
+                                    "type": "channel",
+                                    "title": "Flaixbac",
+                                    "subtitle": "Barcelona, Spain",
+                                    "url": "/listen/flaixbac/sFtKSe5I",
+                                    "place": {"title": "Barcelona"},
+                                    "country": {"title": "Spain"},
+                                },
+                            }
+                        },
                     ]
                 }
             },
@@ -213,11 +239,10 @@ async def test_resolve_radio_station_falls_back_to_search():
     )
     cog = AudioCog(_make_bot(session=session))
 
-    channel_id, title, listen_url = await cog._resolve_radio_station("FlaixBac", "Barcelona")
+    channel_id, title = await cog._resolve_radio_station("FlaixBac", "Barcelona")
 
     assert channel_id == "sFtKSe5I"
     assert title == "Flaixbac"
-    assert listen_url == "https://radio.garden/listen/flaixbac/sFtKSe5I"
     assert session.calls[1][1] == {"q": "FlaixBac Barcelona"}
 
 
@@ -237,7 +262,19 @@ async def test_resolve_radio_station_raises_when_region_filter_has_no_match():
             {
                 "hits": {
                     "hits": [
-                        {"_source": {"type": "channel", "title": "Flaixbac", "subtitle": "Madrid, Spain", "url": "/listen/flaixbac/sFtKSe5I"}},
+                        {
+                            "_source": {
+                                "type": "channel",
+                                "page": {
+                                    "type": "channel",
+                                    "title": "Flaixbac",
+                                    "subtitle": "Madrid, Spain",
+                                    "url": "/listen/flaixbac/sFtKSe5I",
+                                    "place": {"title": "Madrid"},
+                                    "country": {"title": "Spain"},
+                                },
+                            }
+                        },
                     ]
                 }
             }
@@ -254,16 +291,119 @@ async def test_pick_random_station_returns_channel_from_random_place():
     session = DummySession(
         [
             {"data": {"list": [{"id": "place1"}]}},
-            {"data": {"content": [{"items": [{"title": "Mataro Radio", "href": "/listen/mataroradio/sFtKSe5I"}]}]}},
+            {
+                "data": {
+                    "content": [
+                        {
+                            "items": [
+                                {
+                                    "page": {
+                                        "type": "channel",
+                                        "title": "Mataro Radio",
+                                        "url": "/listen/mataroradio/sFtKSe5I",
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
         ]
     )
     cog = AudioCog(_make_bot(session=session))
 
-    channel_id, title, listen_url = await cog._pick_random_station()
+    channel_id, title = await cog._pick_random_station()
 
     assert channel_id == "sFtKSe5I"
     assert title == "Mataro Radio"
-    assert listen_url == "https://radio.garden/listen/mataroradio/sFtKSe5I"
+
+
+@pytest.mark.asyncio
+async def test_resolve_radio_stream_url_prefers_redirect_location():
+    session = DummySession([DummyResponse({}, status=302, headers={"Location": "https://stream.test/live"})])
+    cog = AudioCog(_make_bot(session=session))
+
+    stream_url = await cog._resolve_radio_stream_url("sFtKSe5I")
+
+    assert stream_url == "https://stream.test/live"
+
+
+@pytest.mark.asyncio
+async def test_extract_stream_url_with_ytdlp_returns_stream_url(monkeypatch):
+    cog = AudioCog(_make_bot())
+    monkeypatch.setattr("functions.tool.audio.get_running_loop", lambda: DummyLoop({"url": "https://stream.test/live"}))
+
+    stream_url = await cog._extract_stream_url_with_ytdlp("https://radio.garden/api/ara/content/listen/sFtKSe5I/channel.mp3")
+
+    assert stream_url == "https://stream.test/live"
+
+
+@pytest.mark.asyncio
+async def test_extract_stream_url_with_ytdlp_raises_when_missing_stream_url(monkeypatch):
+    cog = AudioCog(_make_bot())
+    monkeypatch.setattr("functions.tool.audio.get_running_loop", lambda: DummyLoop({"webpage_url": "https://example.test"}))
+
+    with pytest.raises(ValueError):
+        await cog._extract_stream_url_with_ytdlp("https://radio.garden/api/ara/content/listen/sFtKSe5I/channel.mp3")
+
+
+@pytest.mark.asyncio
+async def test_resolve_radio_stream_url_raises_when_unplayable_status():
+    session = DummySession([DummyResponse({}, status=403)])
+    cog = AudioCog(_make_bot(session=session))
+
+    with pytest.raises(ValueError):
+        await cog._resolve_radio_stream_url("sFtKSe5I")
+
+
+@pytest.mark.asyncio
+async def test_radio_does_not_join_voice_when_station_resolution_fails(monkeypatch):
+    connected_client = DummyVoiceClient(connected=True)
+    voice_channel = DummyVoiceChannel(connected_client=connected_client)
+    interaction = _make_interaction(user=DummyMember(42, voice_channel=voice_channel), guild_id=1)
+    cog = AudioCog(_make_bot())
+    cog._resolve_command_channel = MagicMock(return_value=object())
+    cog._resolve_radio_station = AsyncMock(side_effect=ValueError("No radio station found for that query."))
+    cog._resolve_radio_stream_url = AsyncMock()
+    cog._get_or_connect_voice_client = AsyncMock()
+    monkeypatch.setattr("functions.tool.audio.Member", DummyMember)
+
+    await AudioCog.radio.callback(cog, interaction, input="missing", region=None)
+
+    cog._resolve_radio_station.assert_awaited_once_with("missing", None)
+    cog._resolve_radio_stream_url.assert_not_awaited()
+    cog._get_or_connect_voice_client.assert_not_awaited()
+    voice_channel.connect.assert_not_awaited()
+    interaction.followup.send.assert_awaited_once_with(
+        ":x: No radio station found for that query.",
+        ephemeral=True,
+    )
+
+
+@pytest.mark.asyncio
+async def test_radio_does_not_join_voice_when_stream_resolution_fails(monkeypatch):
+    connected_client = DummyVoiceClient(connected=True)
+    voice_channel = DummyVoiceChannel(connected_client=connected_client)
+    interaction = _make_interaction(user=DummyMember(42, voice_channel=voice_channel), guild_id=1)
+    cog = AudioCog(_make_bot())
+    cog._resolve_command_channel = MagicMock(return_value=object())
+    cog._resolve_radio_station = AsyncMock(return_value=("sFtKSe5I", "Flaixbac"))
+    cog._extract_stream_url_with_ytdlp = AsyncMock(side_effect=ValueError("Could not resolve a playable radio stream."))
+    cog._resolve_radio_stream_url = AsyncMock(side_effect=ValueError("Could not resolve a playable radio stream."))
+    cog._get_or_connect_voice_client = AsyncMock()
+    monkeypatch.setattr("functions.tool.audio.Member", DummyMember)
+
+    await AudioCog.radio.callback(cog, interaction, input="flaixbac", region=None)
+
+    cog._resolve_radio_station.assert_awaited_once_with("flaixbac", None)
+    cog._extract_stream_url_with_ytdlp.assert_awaited_once_with("https://radio.garden/api/ara/content/listen/sFtKSe5I/channel.mp3")
+    cog._resolve_radio_stream_url.assert_awaited_once_with("sFtKSe5I")
+    cog._get_or_connect_voice_client.assert_not_awaited()
+    voice_channel.connect.assert_not_awaited()
+    interaction.followup.send.assert_awaited_once_with(
+        ":x: Could not resolve a playable radio stream.",
+        ephemeral=True,
+    )
 
 
 @pytest.mark.asyncio

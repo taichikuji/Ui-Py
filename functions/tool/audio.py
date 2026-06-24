@@ -3,7 +3,7 @@ import re
 from asyncio import get_running_loop, run_coroutine_threadsafe
 from random import choice, shuffle
 from typing import TYPE_CHECKING
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 from discord import (Embed, FFmpegPCMAudio, Interaction, Member, TextChannel, Thread,
                      VoiceChannel, VoiceClient, VoiceState, app_commands)
@@ -98,11 +98,11 @@ class AudioCog(commands.Cog):
 
     @app_commands.command(
         name="radio",
-        description="Play a radio station from Radio Garden (random if no input).",
+        description="Play a radio station from a radio source. Random if no input.",
     )
     @app_commands.describe(
-        input="A station query, Radio Garden URL, or channel ID.",
-        region="Optional region/country hint for query disambiguation (e.g. Spain, Barcelona).",
+        input="A station query, radio URL, or channel ID.",
+        region="Optional region/country hint for query disambiguation (e.g. Netherlands, Hoofddorp).",
     )
     async def radio(self, interaction: Interaction, input: str | None = None, region: str | None = None):
         if (guild_id := interaction.guild_id) is None:
@@ -116,35 +116,53 @@ class AudioCog(commands.Cog):
             return
 
         await interaction.response.defer()
-        vc = await self._get_or_connect_voice_client(guild_id, user.voice.channel, interaction)
-        if vc is None:
-            return
         channel = self._resolve_command_channel(interaction)
         if channel is None:
             await interaction.followup.send(":x: This command must be used in a text channel.", ephemeral=True)
             return
-        self.command_channels[guild_id] = channel
 
         try:
-            channel_id, title, listen_url = await self._resolve_radio_station(input, region)
+            channel_id, title = await self._resolve_radio_station(input, region)
         except ValueError as e:
             await interaction.followup.send(f":x: {e}", ephemeral=True)
             return
         except Exception as e:
-            logger.error("Radio station resolution failed: %s", e)
-            await interaction.followup.send(":x: Failed to reach Radio Garden. Try again later.", ephemeral=True)
+            logger.error("radio station resolution failed: %s", e)
+            await interaction.followup.send(":x: Failed to reach radio source. Try again later.", ephemeral=True)
             return
 
-        stream_url = f"{RADIO_API_BASE}/ara/content/listen/{channel_id}/channel.mp3"
+        stream_api_url = f"{RADIO_API_BASE}/ara/content/listen/{channel_id}/channel.mp3"
+        try:
+            stream_url = await self._extract_stream_url_with_ytdlp(stream_api_url)
+        except ValueError:
+            try:
+                stream_url = await self._resolve_radio_stream_url(channel_id)
+            except ValueError as e:
+                await interaction.followup.send(f":x: {e}", ephemeral=True)
+                return
+            except Exception as e:
+                logger.error("radio stream URL resolution failed: %s", e)
+                await interaction.followup.send(":x: Failed to reach radio source. Try again later.", ephemeral=True)
+                return
+        except Exception as e:
+            logger.error("radio stream URL extraction failed: %s", e)
+            await interaction.followup.send(":x: Failed to reach radio source. Try again later.", ephemeral=True)
+            return
+
+        vc = await self._get_or_connect_voice_client(guild_id, user.voice.channel, interaction)
+        if vc is None:
+            return
+        self.command_channels[guild_id] = channel
+
         await self._enqueue_or_play(
             guild_id,
-            source_url=listen_url,
+            source_url=stream_api_url,
             title=title,
             duration="LIVE",
             stream_url=stream_url,
             followup=interaction.followup.send,
-            now_playing_message=f":radio: Playing [{title}]({listen_url}) on Radio Garden",
-            queue_message=f":ballot_box_with_check: Added to queue: :radio: [{title}]({listen_url}) [LIVE]",
+            now_playing_message=f":radio: Playing **{title}** on Radio Garden",
+            queue_message=f":ballot_box_with_check: Added to queue: :radio: **{title}** [LIVE]",
         )
 
     async def _enqueue_or_play(
@@ -212,7 +230,7 @@ class AudioCog(commands.Cog):
             return
         if guild_id in self.command_channels and (channel := self.command_channels[guild_id]):
             if duration == "LIVE":
-                await channel.send(f":radio: Playing [{title}]({source_url}) on Radio Garden")
+                await channel.send(f":radio: Playing **{title}** on Radio Garden")
             else:
                 await channel.send(f":notes: Now playing: **{title}** [{duration}]")
 
@@ -328,7 +346,7 @@ class AudioCog(commands.Cog):
             if len(vc.channel.members) == 1 and vc.channel.members[0] == self.bot.user:
                 await self._disconnect_and_cleanup(guild_id)
 
-    async def _resolve_radio_station(self, query: str | None, region: str | None = None) -> tuple[str, str, str]:
+    async def _resolve_radio_station(self, query: str | None, region: str | None = None) -> tuple[str, str]:
         if query is None or not query.strip():
             return await self._pick_random_station()
 
@@ -336,8 +354,7 @@ class AudioCog(commands.Cog):
         if channel_id := self._extract_channel_id(raw):
             if channel := await self._fetch_radio_channel(channel_id):
                 title = channel.get("title") or "Unknown Station"
-                listen_url = self._full_listen_url(channel.get("url"), channel_id)
-                return channel_id, title, listen_url
+                return channel_id, title
 
         channel = await self._search_radio_channel(raw, region)
         if channel is None:
@@ -348,8 +365,7 @@ class AudioCog(commands.Cog):
         if not (channel_id := self._channel_id_from_href(channel.get("url"))):
             raise ValueError("Could not resolve a station stream ID from search results.")
         title = channel.get("title") or "Unknown Station"
-        listen_url = self._full_listen_url(channel.get("url"), channel_id)
-        return channel_id, title, listen_url
+        return channel_id, title
 
     @staticmethod
     def _extract_channel_id(value: str) -> str | None:
@@ -364,11 +380,11 @@ class AudioCog(commands.Cog):
             return value
         return None
 
-    async def _pick_random_station(self) -> tuple[str, str, str]:
+    async def _pick_random_station(self) -> tuple[str, str]:
         places_payload = await self._fetch_json(f"{RADIO_API_BASE}/ara/content/places")
         places = (places_payload or {}).get("data", {}).get("list") or []
         if not places:
-            raise ValueError("No Radio Garden places available.")
+            raise ValueError("No radio places available.")
 
         random_places = places[:]
         shuffle(random_places)
@@ -382,24 +398,64 @@ class AudioCog(commands.Cog):
                 continue
 
             station = choice(channels)
-            if not (channel_id := self._channel_id_from_href(station.get("href"))):
+            if not (channel_id := self._channel_id_from_href(station.get("href") or station.get("url"))):
                 continue
             title = station.get("title") or "Unknown Station"
-            listen_url = self._full_listen_url(station.get("href"), channel_id)
-            return channel_id, title, listen_url
+            return channel_id, title
 
-        raise ValueError("Could not find a random Radio Garden station. Try again.")
+        raise ValueError("Could not find a random radio station. Try again.")
 
     async def _fetch_place_channels(self, place_id: str) -> list[dict]:
         payload = await self._fetch_json(f"{RADIO_API_BASE}/ara/content/page/{place_id}/channels")
         content = (payload or {}).get("data", {}).get("content") or []
         if not content:
             return []
-        return content[0].get("items") or []
+        channels = []
+        for item in content[0].get("items") or []:
+            if channel := self._radio_station_page(item):
+                channels.append(channel)
+        return channels
 
     async def _fetch_radio_channel(self, channel_id: str) -> dict | None:
         payload = await self._fetch_json(f"{RADIO_API_BASE}/ara/content/channel/{channel_id}")
         return (payload or {}).get("data")
+
+    async def _extract_stream_url_with_ytdlp(self, source_url: str) -> str:
+        try:
+            info = await get_running_loop().run_in_executor(None, self._search_source, source_url)
+            if not info:
+                raise ValueError("Failed to extract information.")
+            if "entries" in info:
+                if not info["entries"]:
+                    raise ValueError("No results found.")
+                info = info["entries"][0]
+            if stream_url := info.get("url"):
+                return stream_url
+        except Exception as e:
+            logger.error("yt-dlp extraction failed for %s: %s", source_url, e)
+            raise ValueError("Could not resolve a playable radio stream.") from e
+
+        raise ValueError("Could not resolve a playable radio stream.")
+
+    async def _resolve_radio_stream_url(self, channel_id: str) -> str:
+        stream_api_url = f"{RADIO_API_BASE}/ara/content/listen/{channel_id}/channel.mp3"
+        if self.bot.session is None:
+            raise RuntimeError("HTTP session is not available.")
+
+        try:
+            async with self.bot.session.get(stream_api_url, allow_redirects=False, timeout=10) as resp:
+                redirect_statuses = {301, 302, 303, 307, 308}
+                if resp.status in redirect_statuses:
+                    location = resp.headers.get("Location")
+                    if location:
+                        return urljoin(stream_api_url, location)
+                if resp.status == 200:
+                    return stream_api_url
+        except Exception as e:
+            logger.error("HTTP request failed for %s: %s", stream_api_url, e)
+            raise ValueError("Could not resolve a playable radio stream.") from e
+
+        raise ValueError("Could not resolve a playable radio stream.")
 
     async def _search_radio_channel(self, query: str, region: str | None = None) -> dict | None:
         # Optional region hint narrows plain-text channel search results.
@@ -411,18 +467,26 @@ class AudioCog(commands.Cog):
         region_match: dict | None = None
         for hit in hits:
             source = hit.get("_source") or {}
-            if source.get("type") != "channel":
+            channel = self._radio_station_page(source)
+            if not channel:
                 continue
-            if self._channel_id_from_href(source.get("url")):
-                if region and self._matches_region(source, region):
-                    return source
+            if self._channel_id_from_href(channel.get("url")):
+                if region and self._matches_region(channel, region):
+                    return channel
                 if region_match is None:
-                    region_match = source
+                    region_match = channel
                 if not region:
-                    return source
+                    return channel
         if region:
             return None
         return region_match
+
+    @staticmethod
+    def _radio_station_page(source: dict) -> dict | None:
+        page = source.get("page")
+        if isinstance(page, dict):
+            return page if page.get("type") == "channel" else None
+        return source if source.get("type") == "channel" else None
 
     @staticmethod
     def _matches_region(source: dict, region: str) -> bool:
@@ -431,7 +495,11 @@ class AudioCog(commands.Cog):
             return True
         subtitle = str(source.get("subtitle") or "").lower()
         title = str(source.get("title") or "").lower()
-        return region_value in subtitle or region_value in title
+        place = source.get("place") if isinstance(source.get("place"), dict) else {}
+        country = source.get("country") if isinstance(source.get("country"), dict) else {}
+        place_title = str(place.get("title") or "").lower()
+        country_title = str(country.get("title") or "").lower()
+        return region_value in subtitle or region_value in title or region_value in place_title or region_value in country_title
 
     async def _fetch_json(self, url: str, *, params: dict | None = None) -> dict | None:
         if self.bot.session is None:
@@ -455,16 +523,6 @@ class AudioCog(commands.Cog):
         if segments and _CHANNEL_ID_RE.match(segments[-1]):
             return segments[-1]
         return None
-
-    @staticmethod
-    def _full_listen_url(path_or_url: str | None, channel_id: str) -> str:
-        if not path_or_url:
-            return f"https://radio.garden/listen/_/{channel_id}"
-        if path_or_url.startswith("http://") or path_or_url.startswith("https://"):
-            return path_or_url
-        if not path_or_url.startswith("/"):
-            path_or_url = f"/{path_or_url}"
-        return f"https://radio.garden{path_or_url}"
 
     @app_commands.command(
         name="stop",
