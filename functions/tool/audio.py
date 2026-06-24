@@ -61,8 +61,7 @@ class AudioCog(commands.Cog):
             return
 
         await interaction.response.defer()
-        vc = await self._get_or_connect_voice_client(guild_id, user.voice.channel, interaction)
-        if vc is None:
+        if await self._get_or_connect_voice_client(guild_id, user.voice.channel, interaction) is None:
             return
         channel = self._resolve_command_channel(interaction)
         if channel is None:
@@ -116,6 +115,8 @@ class AudioCog(commands.Cog):
             return
 
         await interaction.response.defer()
+        if await self._get_or_connect_voice_client(guild_id, user.voice.channel, interaction) is None:
+            return
         channel = self._resolve_command_channel(interaction)
         if channel is None:
             await interaction.followup.send(":x: This command must be used in a text channel.", ephemeral=True)
@@ -149,9 +150,6 @@ class AudioCog(commands.Cog):
             await interaction.followup.send(":x: Failed to reach radio source. Try again later.", ephemeral=True)
             return
 
-        vc = await self._get_or_connect_voice_client(guild_id, user.voice.channel, interaction)
-        if vc is None:
-            return
         self.command_channels[guild_id] = channel
 
         await self._enqueue_or_play(
