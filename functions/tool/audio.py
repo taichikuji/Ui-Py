@@ -1,11 +1,12 @@
 import logging
+from collections import deque
 from asyncio import get_running_loop, run_coroutine_threadsafe
-from random import choice, shuffle
+from random import choice, sample, shuffle
 from typing import TYPE_CHECKING
 from urllib.parse import urljoin, urlparse
 
-from discord import (Embed, FFmpegPCMAudio, Interaction, Member, TextChannel, Thread,
-                     VoiceChannel, VoiceClient, VoiceState, app_commands)
+from discord import (Embed, FFmpegPCMAudio, Interaction, Member, VoiceChannel,
+                     VoiceClient, VoiceState, app_commands)
 from discord.ext import commands
 from yt_dlp import YoutubeDL
 
@@ -22,9 +23,9 @@ class AudioCog(commands.Cog):
     def __init__(self, bot: "UiPy"):
         self.bot = bot
         self.voice_clients: dict[int, VoiceClient] = {}
-        self.queues: dict[int, list[tuple[str, str, str, str | None]]] = {}
+        self.queues: dict[int, deque[tuple[str, str, str, str | None]]] = {}
         self.currently_playing: dict[int, tuple[str, str, str]] = {}
-        self.command_channels: dict[int, TextChannel | VoiceChannel | Thread] = {}
+        self.command_channels: dict[int, object] = {}
         self.ydl_opts = {
             "format": "bestaudio/best",
             "default_search": "ytsearch",
@@ -57,8 +58,10 @@ class AudioCog(commands.Cog):
             return
 
         await interaction.response.defer()
-        channel = self._resolve_command_channel(interaction)
-        if channel is None:
+        if await self._get_or_connect_voice_client(guild_id, user.voice.channel, interaction) is None:
+            return
+        channel = interaction.channel
+        if channel is None or not hasattr(channel, "send"):
             await interaction.followup.send(":x: This command must be used in a text channel.", ephemeral=True)
             return
         self.command_channels[guild_id] = channel
@@ -103,8 +106,8 @@ class AudioCog(commands.Cog):
             return
 
         await interaction.response.defer()
-        channel = self._resolve_command_channel(interaction)
-        if channel is None:
+        channel = interaction.channel
+        if channel is None or not hasattr(channel, "send"):
             await interaction.followup.send(":x: This command must be used in a text channel.", ephemeral=True)
             return
 
@@ -168,8 +171,11 @@ class AudioCog(commands.Cog):
             await followup(":x: The bot is not connected to a voice channel.", ephemeral=True)
             return
 
-        self.queues.setdefault(guild_id, [])
+        self.queues.setdefault(guild_id, deque())
         if vc.is_playing() or vc.is_paused() or self.queues[guild_id]:
+            if len(self.queues[guild_id]) >= 25:
+                await followup(":x: Queue is full (25 items).", ephemeral=True)
+                return
             # For YouTube entries, stream URL can expire. Re-resolve on playback.
             queued_stream_url = stream_url if duration == "LIVE" else None
             self.queues[guild_id].append((source_url, title, duration, queued_stream_url))
@@ -181,12 +187,6 @@ class AudioCog(commands.Cog):
             await followup(now_playing_message or f":notes: Now playing: **{title}** [{duration}]")
         else:
             await followup(":x: Failed to start playback.", ephemeral=True)
-
-    @staticmethod
-    def _resolve_command_channel(interaction: Interaction) -> TextChannel | VoiceChannel | Thread | None:
-        if isinstance(interaction.channel, (TextChannel, VoiceChannel, Thread)):
-            return interaction.channel
-        return None
 
     async def _get_or_connect_voice_client(
         self, guild_id: int, user_voice_channel: VoiceChannel, interaction: Interaction
@@ -215,10 +215,13 @@ class AudioCog(commands.Cog):
         if not started:
             return
         if guild_id in self.command_channels and (channel := self.command_channels[guild_id]):
-            if duration == "LIVE":
-                await channel.send(f":radio: Playing **{title}** on Radio Garden")
-            else:
-                await channel.send(f":notes: Now playing: **{title}** [{duration}]")
+            try:
+                if duration == "LIVE":
+                    await channel.send(f":radio: Playing **{title}** on Radio Garden")
+                else:
+                    await channel.send(f":notes: Now playing: **{title}** [{duration}]")
+            except Exception as e:
+                logger.warning("Failed to send now-playing message in guild %s: %s", guild_id, e)
 
     async def _ensure_user_in_same_voice_channel(self, interaction: Interaction, guild_id: int) -> VoiceClient | None:
         if not isinstance(user := interaction.user, Member):
@@ -303,17 +306,22 @@ class AudioCog(commands.Cog):
             logger.error("Player error for guild %s: %s", guild_id, error)
         vc = self.voice_clients.get(guild_id)
         if vc is None or not vc.is_connected():
+            run_coroutine_threadsafe(self._disconnect_and_cleanup(guild_id), self.bot.loop)
             return
 
         queue = self.queues.get(guild_id)
         if queue:
-            source_url, title, duration, stream_url = queue.pop(0)
+            source_url, title, duration, stream_url = queue.popleft()
             coro = self._play_next_track_and_announce(guild_id, source_url, title, duration, stream_url)
             run_coroutine_threadsafe(coro, self.bot.loop)
             return
 
         self.currently_playing.pop(guild_id, None)
         run_coroutine_threadsafe(self._disconnect_and_cleanup(guild_id), self.bot.loop)
+
+    def cog_unload(self):
+        for guild_id in list(self.voice_clients):
+            run_coroutine_threadsafe(self._disconnect_and_cleanup(guild_id), self.bot.loop)
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: Member, before: VoiceState, after: VoiceState):
@@ -326,6 +334,7 @@ class AudioCog(commands.Cog):
             return
 
         if not vc.is_connected() or not vc.channel:
+            await self._disconnect_and_cleanup(guild_id)
             return
 
         if before.channel == vc.channel and after.channel != vc.channel:
@@ -338,7 +347,7 @@ class AudioCog(commands.Cog):
 
         raw = query.strip()
         if channel_id := self._extract_channel_id(raw):
-            if channel := await self._fetch_radio_channel(channel_id):
+            if channel := (await self._fetch_json(f"{self.RADIO_ENDPOINT}/ara/content/channel/{channel_id}") or {}).get("data"):
                 title = channel.get("title") or "Unknown Station"
                 return channel_id, title
 
@@ -371,9 +380,7 @@ class AudioCog(commands.Cog):
         if not places:
             raise ValueError("No radio places available.")
 
-        random_places = places[:]
-        shuffle(random_places)
-        for place in random_places[: min(len(random_places), 5)]:
+        for place in sample(places, k=min(len(places), 5)):
             place_id = place.get("id")
             if not place_id:
                 continue
@@ -400,10 +407,6 @@ class AudioCog(commands.Cog):
             if channel := self._radio_station_page(item):
                 channels.append(channel)
         return channels
-
-    async def _fetch_radio_channel(self, channel_id: str) -> dict | None:
-        payload = await self._fetch_json(f"{self.RADIO_ENDPOINT}/ara/content/channel/{channel_id}")
-        return (payload or {}).get("data")
 
     async def _extract_stream_url_with_ytdlp(self, source_url: str) -> str:
         try:
@@ -556,7 +559,7 @@ class AudioCog(commands.Cog):
             queue_items.append(f"**Now Playing:** {title} [{duration}]")
 
         if guild_id in self.queues and self.queues[guild_id]:
-            for i, (_, title, duration, _) in enumerate(self.queues[guild_id][:max_display]):
+            for i, (_, title, duration, _) in enumerate(list(self.queues[guild_id])[:max_display]):
                 queue_items.append(f"{i+1}. {title} [{duration}]")
 
             if len(self.queues[guild_id]) > max_display:
@@ -591,7 +594,9 @@ class AudioCog(commands.Cog):
             await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
             return
         if guild_id in self.queues and self.queues[guild_id]:
-            shuffle(self.queues[guild_id])
+            shuffled = list(self.queues[guild_id])
+            shuffle(shuffled)
+            self.queues[guild_id] = deque(shuffled)
             await interaction.response.send_message(":twisted_rightwards_arrows: Queue shuffled.")
         else:
             await interaction.response.send_message(":x: The music queue is currently empty.", ephemeral=True)
