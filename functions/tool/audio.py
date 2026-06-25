@@ -15,11 +15,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-RADIO_API_BASE = "https://radio.garden/api"
-_CHANNEL_ID_RE = re.compile(r"^[A-Za-z0-9_-]{6,16}$")
-_LISTEN_URL_RE = re.compile(r"/listen/[^/]+/([A-Za-z0-9_-]+)", re.IGNORECASE)
-
-
 class AudioCog(commands.Cog):
     """Cog for unified audio playback (music + radio)."""
 
@@ -43,6 +38,11 @@ class AudioCog(commands.Cog):
         self.ffmpeg_opts = {
             "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -analyzeduration 10M -probesize 10M",
             "options": "-vn",
+        }
+        self.radio_opts = {
+            "endpoint": "https://radio.garden/api",
+            "channel_re": re.compile(r"^[A-Za-z0-9_-]{6,16}$"),
+            "listen_re": re.compile(r"/listen/[^/]+/([A-Za-z0-9_-]+)", re.IGNORECASE),
         }
 
     @app_commands.command(name="play", description="Play a song from YouTube. Provide a search term or URL.")
@@ -95,15 +95,9 @@ class AudioCog(commands.Cog):
             followup=interaction.followup.send,
         )
 
-    @app_commands.command(
-        name="radio",
-        description="Play a radio station from a radio source. Random if no input.",
-    )
-    @app_commands.describe(
-        input="A station query, radio URL, or channel ID.",
-        region="Optional region/country hint for query disambiguation (e.g. Netherlands, Hoofddorp).",
-    )
-    async def radio(self, interaction: Interaction, input: str | None = None, region: str | None = None):
+    @app_commands.command(name="radio", description="Play a radio station from a radio source. Random if no input.")
+    @app_commands.describe(query="A station query, radio URL, or channel ID.", region="Optional region/country hint.")
+    async def radio(self, interaction: Interaction, query: str | None = None, region: str | None = None):
         if (guild_id := interaction.guild_id) is None:
             await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
             return
@@ -132,7 +126,7 @@ class AudioCog(commands.Cog):
             await interaction.followup.send(":x: Failed to reach radio source. Try again later.", ephemeral=True)
             return
 
-        stream_api_url = f"{RADIO_API_BASE}/ara/content/listen/{channel_id}/channel.mp3"
+        stream_api_url = f"{self.radio_opts['endpoint']}/ara/content/listen/{channel_id}/channel.mp3"
         try:
             stream_url = await self._extract_stream_url_with_ytdlp(stream_api_url)
         except ValueError:
@@ -371,15 +365,15 @@ class AudioCog(commands.Cog):
         if parsed.scheme and parsed.netloc:
             if parsed.netloc.lower() not in {"radio.garden", "www.radio.garden"}:
                 return None
-            if match := _LISTEN_URL_RE.search(parsed.path):
+            if match := self.radio_opts["listen_re"].search(parsed.path):
                 return match.group(1)
             return None
-        if _CHANNEL_ID_RE.match(value):
+        if self.radio_opts["channel_re"].match(value):
             return value
         return None
 
     async def _pick_random_station(self) -> tuple[str, str]:
-        places_payload = await self._fetch_json(f"{RADIO_API_BASE}/ara/content/places")
+        places_payload = await self._fetch_json(f"{self.radio_opts['endpoint']}/ara/content/places")
         places = (places_payload or {}).get("data", {}).get("list") or []
         if not places:
             raise ValueError("No radio places available.")
@@ -404,7 +398,7 @@ class AudioCog(commands.Cog):
         raise ValueError("Could not find a random radio station. Try again.")
 
     async def _fetch_place_channels(self, place_id: str) -> list[dict]:
-        payload = await self._fetch_json(f"{RADIO_API_BASE}/ara/content/page/{place_id}/channels")
+        payload = await self._fetch_json(f"{self.radio_opts['endpoint']}/ara/content/page/{place_id}/channels")
         content = (payload or {}).get("data", {}).get("content") or []
         if not content:
             return []
@@ -415,7 +409,7 @@ class AudioCog(commands.Cog):
         return channels
 
     async def _fetch_radio_channel(self, channel_id: str) -> dict | None:
-        payload = await self._fetch_json(f"{RADIO_API_BASE}/ara/content/channel/{channel_id}")
+        payload = await self._fetch_json(f"{self.radio_opts['endpoint']}/ara/content/channel/{channel_id}")
         return (payload or {}).get("data")
 
     async def _extract_stream_url_with_ytdlp(self, source_url: str) -> str:
@@ -436,7 +430,7 @@ class AudioCog(commands.Cog):
         raise ValueError("Could not resolve a playable radio stream.")
 
     async def _resolve_radio_stream_url(self, channel_id: str) -> str:
-        stream_api_url = f"{RADIO_API_BASE}/ara/content/listen/{channel_id}/channel.mp3"
+        stream_api_url = f"{self.radio_opts['endpoint']}/ara/content/listen/{channel_id}/channel.mp3"
         if self.bot.session is None:
             raise RuntimeError("HTTP session is not available.")
 
@@ -460,7 +454,7 @@ class AudioCog(commands.Cog):
         search_query = query.strip()
         if region and region.strip():
             search_query = f"{search_query} {region.strip()}"
-        payload = await self._fetch_json(f"{RADIO_API_BASE}/search", params={"q": search_query})
+        payload = await self._fetch_json(f"{self.radio_opts['endpoint']}/search", params={"q": search_query})
         hits = (payload or {}).get("hits", {}).get("hits") or []
         region_match: dict | None = None
         for hit in hits:
@@ -515,17 +509,14 @@ class AudioCog(commands.Cog):
     def _channel_id_from_href(href: str | None) -> str | None:
         if not href:
             return None
-        if match := _LISTEN_URL_RE.search(href):
+        if match := self.radio_opts["listen_re"].search(href):
             return match.group(1)
         segments = [seg for seg in href.split("/") if seg]
-        if segments and _CHANNEL_ID_RE.match(segments[-1]):
+        if segments and self.radio_opts["channel_re"].match(segments[-1]):
             return segments[-1]
         return None
 
-    @app_commands.command(
-        name="stop",
-        description="Stop the currently playing audio and disconnect."
-    )
+    @app_commands.command(name="stop", description="Stop the currently playing audio and disconnect.")
     async def stop(self, interaction: Interaction):
         if (guild_id := interaction.guild_id) is None:
             await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
@@ -535,10 +526,7 @@ class AudioCog(commands.Cog):
         await self._disconnect_and_cleanup(guild_id)
         await interaction.response.send_message(":stop_button: Stopped and disconnected.")
 
-    @app_commands.command(
-        name="pause",
-        description="Pause the currently playing audio."
-    )
+    @app_commands.command(name="pause", description="Pause the currently playing audio.")
     async def pause(self, interaction: Interaction):
         if (guild_id := interaction.guild_id) is None:
             await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
@@ -551,10 +539,7 @@ class AudioCog(commands.Cog):
         else:
             await interaction.response.send_message(":x: Nothing is currently playing.", ephemeral=True)
 
-    @app_commands.command(
-        name="resume",
-        description="Resume paused audio."
-    )
+    @app_commands.command(name="resume", description="Resume paused audio.")
     async def resume(self, interaction: Interaction):
         if (guild_id := interaction.guild_id) is None:
             await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
@@ -567,10 +552,7 @@ class AudioCog(commands.Cog):
         else:
             await interaction.response.send_message(":x: Playback is not paused.", ephemeral=True)
 
-    @app_commands.command(
-        name="queue",
-        description="Show the current music queue. Displays up to 10 items and indicates if there are more."
-    )
+    @app_commands.command(name="queue", description="Show the current music queue. Displays up to 10 items and indicates if there are more.")
     async def queue(self, interaction: Interaction):
         if (guild_id := interaction.guild_id) is None:
             await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
@@ -599,10 +581,7 @@ class AudioCog(commands.Cog):
             )
             await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(
-        name="skip",
-        description="Skip the current song."
-    )
+    @app_commands.command(name="skip", description="Skip the current song.")
     async def skip(self, interaction: Interaction):
         if (guild_id := interaction.guild_id) is None:
             await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
@@ -615,10 +594,7 @@ class AudioCog(commands.Cog):
         else:
             await interaction.response.send_message(":x: Nothing is currently playing.", ephemeral=True)
 
-    @app_commands.command(
-        name="shuffle",
-        description="Shuffle the current music queue."
-    )
+    @app_commands.command(name="shuffle", description="Shuffle the current music queue.")
     async def shuffle(self, interaction: Interaction):
         if (guild_id := interaction.guild_id) is None:
             await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
