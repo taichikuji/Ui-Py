@@ -368,7 +368,7 @@ async def test_radio_does_not_join_voice_when_station_resolution_fails(monkeypat
     cog._get_or_connect_voice_client = AsyncMock()
     monkeypatch.setattr("functions.tool.audio.Member", DummyMember)
 
-    await AudioCog.radio.callback(cog, interaction, input="missing", region=None)
+    await AudioCog.radio.callback(cog, interaction, query="missing", region=None)
 
     cog._resolve_radio_station.assert_awaited_once_with("missing", None)
     cog._resolve_radio_stream_url.assert_not_awaited()
@@ -393,7 +393,7 @@ async def test_radio_does_not_join_voice_when_stream_resolution_fails(monkeypatc
     cog._get_or_connect_voice_client = AsyncMock()
     monkeypatch.setattr("functions.tool.audio.Member", DummyMember)
 
-    await AudioCog.radio.callback(cog, interaction, input="flaixbac", region=None)
+    await AudioCog.radio.callback(cog, interaction, query="flaixbac", region=None)
 
     cog._resolve_radio_station.assert_awaited_once_with("flaixbac", None)
     cog._extract_stream_url_with_ytdlp.assert_awaited_once_with("https://radio.garden/api/ara/content/listen/sFtKSe5I/channel.mp3")
@@ -433,6 +433,18 @@ async def test_enqueue_or_play_queues_when_playing():
 
     assert cog.queues[1][0][1] == "Mataro Radio"
     followup.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_queue_displays_queued_items():
+    interaction = _make_interaction(user=object(), guild_id=1)
+    cog = AudioCog(_make_bot())
+    cog.queues[1] = [("url", "Queued Track", "3:00", None)]
+
+    await AudioCog.queue.callback(cog, interaction)
+
+    embed = interaction.response.send_message.await_args.kwargs["embed"]
+    assert embed.description == "1. Queued Track [3:00]"
 
 
 @pytest.mark.asyncio
