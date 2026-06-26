@@ -8,7 +8,7 @@ services:
       - TOKEN=${TOKEN}
       - STEAM_TOKEN=${STEAM_TOKEN}
     volumes:
-      - ui_db:/usr/src/app/data
+      - sakamoto_db:/usr/src/app/data
     # Label for updater to detect the service to update
     # labels:
     #   - "com.taichikuji.sakamoto.enable=true"
