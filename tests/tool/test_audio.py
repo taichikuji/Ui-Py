@@ -8,7 +8,9 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from functions.tool.audio import AudioCog, RadioCog
+from functions.tool._audio_engine import AudioEngine, QueueItem
+from functions.tool.music import MusicCog
+from functions.tool.radio import RadioCog
 
 
 def _radio_command(name: str):
@@ -112,25 +114,25 @@ def _make_interaction(*, user, guild_id=1):
 
 @pytest.mark.asyncio
 async def test_play_song_returns_false_when_refreshed_stream_url_missing(monkeypatch):
-    cog = AudioCog(_make_bot())
+    cog = AudioEngine(_make_bot())
     cog.voice_clients[1] = DummyVoiceClient(connected=True)
-    cog._play_next = MagicMock()
-    monkeypatch.setattr("functions.tool.audio.get_running_loop", lambda: DummyLoop({"webpage_url": "x"}))
+    cog.play_next = MagicMock()
+    refresh_stream = AsyncMock(return_value=None)
 
-    started = await cog._play_song(1, "https://example.test/watch", None, "Track", "3:00")
+    started = await cog.play_song(1, "https://example.test/watch", None, "Track", "3:00", refresh_stream)
 
     assert started is False
-    cog._play_next.assert_called_once_with(1)
+    cog.play_next.assert_called_once_with(1)
 
 
 @pytest.mark.asyncio
 async def test_play_song_starts_playback_and_tracks_current_song(monkeypatch):
     vc = DummyVoiceClient(connected=True)
-    cog = AudioCog(_make_bot())
+    cog = AudioEngine(_make_bot())
     cog.voice_clients[1] = vc
-    monkeypatch.setattr("functions.tool.audio.FFmpegPCMAudio", lambda stream_url, **_kw: f"audio:{stream_url}")
+    monkeypatch.setattr("functions.tool._audio_engine.FFmpegPCMAudio", lambda stream_url, **_kw: f"audio:{stream_url}")
 
-    started = await cog._play_song(1, "https://example.test/watch", "https://stream.test", "Track", "3:00")
+    started = await cog.play_song(1, "https://example.test/watch", "https://stream.test", "Track", "3:00")
 
     assert started is True
     assert cog.currently_playing[1] == ("https://example.test/watch", "Track", "3:00")
@@ -139,14 +141,14 @@ async def test_play_song_starts_playback_and_tracks_current_song(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_ensure_user_in_same_voice_channel_rejects_other_channel(monkeypatch):
-    cog = AudioCog(_make_bot())
+    cog = AudioEngine(_make_bot())
     bot_channel = object()
     other_channel = object()
     cog.voice_clients[1] = DummyVoiceClient(connected=True, channel=bot_channel)
-    monkeypatch.setattr("functions.tool.audio.Member", DummyMember)
+    monkeypatch.setattr("functions.tool._audio_engine.Member", DummyMember)
     interaction = _make_interaction(user=DummyMember(42, voice_channel=other_channel), guild_id=1)
 
-    vc = await cog._ensure_user_in_same_voice_channel(interaction, 1)
+    vc = await cog.ensure_user_in_same_voice_channel(interaction, 1)
 
     assert vc is None
     interaction.response.send_message.assert_awaited_with(
@@ -156,24 +158,24 @@ async def test_ensure_user_in_same_voice_channel_rejects_other_channel(monkeypat
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("command", [AudioCog.stop, AudioCog.pause, AudioCog.resume, AudioCog.skip])
+@pytest.mark.parametrize("command", [MusicCog.stop, MusicCog.pause, MusicCog.resume, MusicCog.skip])
 async def test_control_commands_return_early_when_same_channel_check_fails(command):
     interaction = _make_interaction(user=object(), guild_id=1)
-    cog = AudioCog(_make_bot())
-    cog._ensure_user_in_same_voice_channel = AsyncMock(return_value=None)
-    cog._disconnect_and_cleanup = AsyncMock()
+    cog = MusicCog(_make_bot())
+    cog.engine.ensure_user_in_same_voice_channel = AsyncMock(return_value=None)
+    cog.engine.disconnect_and_cleanup = AsyncMock()
 
     await command.callback(cog, interaction)
 
-    cog._ensure_user_in_same_voice_channel.assert_awaited_once_with(interaction, 1)
+    cog.engine.ensure_user_in_same_voice_channel.assert_awaited_once_with(interaction, 1)
     interaction.response.send_message.assert_not_awaited()
-    cog._disconnect_and_cleanup.assert_not_awaited()
+    cog.engine.disconnect_and_cleanup.assert_not_awaited()
 
 
 def test_play_next_returns_without_voice_client(monkeypatch):
-    cog = AudioCog(_make_bot())
-    monkeypatch.setattr("functions.tool.audio.run_coroutine_threadsafe", lambda coro, _loop: coro.close())
-    cog._play_next(123)
+    cog = AudioEngine(_make_bot())
+    monkeypatch.setattr("functions.tool._audio_engine.run_coroutine_threadsafe", lambda coro, _loop: coro.close())
+    cog.play_next(123)
     assert cog.currently_playing == {}
 
 
@@ -188,7 +190,7 @@ def test_play_next_returns_without_voice_client(monkeypatch):
     ],
 )
 def test_extract_channel_id(value, expected):
-    assert AudioCog._extract_channel_id(value) == expected
+    assert RadioCog.extract_channel_id(value) == expected
 
 
 @pytest.mark.parametrize(
@@ -200,15 +202,15 @@ def test_extract_channel_id(value, expected):
     ],
 )
 def test_channel_id_from_href(href, expected):
-    assert AudioCog._channel_id_from_href(href) == expected
+    assert RadioCog.channel_id_from_href(href) == expected
 
 
 @pytest.mark.asyncio
 async def test_resolve_radio_station_with_channel_id():
     session = DummySession([{"data": {"title": "Mataro Radio", "url": "/listen/mataroradio/sFtKSe5I"}}])
-    cog = AudioCog(_make_bot(session=session))
+    cog = RadioCog(_make_bot(session=session))
 
-    channel_id, title = await cog._resolve_radio_station("sFtKSe5I", "Barcelona")
+    channel_id, title = await cog.resolve_radio_station("sFtKSe5I", "Barcelona")
 
     assert channel_id == "sFtKSe5I"
     assert title == "Mataro Radio"
@@ -254,9 +256,9 @@ async def test_resolve_radio_station_falls_back_to_search():
             },
         ]
     )
-    cog = AudioCog(_make_bot(session=session))
+    cog = RadioCog(_make_bot(session=session))
 
-    channel_id, title = await cog._resolve_radio_station("FlaixBac", "Barcelona")
+    channel_id, title = await cog.resolve_radio_station("FlaixBac", "Barcelona")
 
     assert channel_id == "sFtKSe5I"
     assert title == "Flaixbac"
@@ -264,46 +266,24 @@ async def test_resolve_radio_station_falls_back_to_search():
 
 
 @pytest.mark.asyncio
-async def test_resolve_radio_station_with_region_only_uses_region_search():
-    session = DummySession(
-        [
-            {
-                "hits": {
-                    "hits": [
-                        {
-                            "_source": {
-                                "type": "channel",
-                                "page": {
-                                    "type": "channel",
-                                    "title": "Radio Marca",
-                                    "subtitle": "Madrid, Spain",
-                                    "url": "/listen/radio-marca/spain123",
-                                    "place": {"title": "Madrid"},
-                                    "country": {"title": "Spain"},
-                                },
-                            }
-                        },
-                    ]
-                }
-            },
-        ]
-    )
-    cog = AudioCog(_make_bot(session=session))
+async def test_resolve_radio_station_with_none_query_uses_random_station():
+    cog = RadioCog(_make_bot(session=DummySession([])))
+    cog.pick_random_station = AsyncMock(return_value=("spain123", "Radio Marca"))
 
-    channel_id, title = await cog._resolve_radio_station(None, "Spain")
+    channel_id, title = await cog.resolve_radio_station(None, "Spain")
 
     assert channel_id == "spain123"
     assert title == "Radio Marca"
-    assert session.calls[0][1] == {"q": "Spain"}
+    cog.pick_random_station.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_resolve_radio_station_raises_when_search_empty():
     session = DummySession([{"hits": {"hits": []}}])
-    cog = AudioCog(_make_bot(session=session))
+    cog = RadioCog(_make_bot(session=session))
 
     with pytest.raises(ValueError):
-        await cog._resolve_radio_station("does-not-exist", "Barcelona")
+        await cog.resolve_radio_station("does-not-exist", "Barcelona")
 
 
 @pytest.mark.asyncio
@@ -331,10 +311,10 @@ async def test_resolve_radio_station_raises_when_region_filter_has_no_match():
             }
         ]
     )
-    cog = AudioCog(_make_bot(session=session))
+    cog = RadioCog(_make_bot(session=session))
 
     with pytest.raises(ValueError):
-        await cog._resolve_radio_station("FlaixBac", "Barcelona")
+        await cog.resolve_radio_station("FlaixBac", "Barcelona")
 
 
 @pytest.mark.asyncio
@@ -361,9 +341,9 @@ async def test_pick_random_station_returns_channel_from_random_place():
             },
         ]
     )
-    cog = AudioCog(_make_bot(session=session))
+    cog = RadioCog(_make_bot(session=session))
 
-    channel_id, title = await cog._pick_random_station()
+    channel_id, title = await cog.pick_random_station()
 
     assert channel_id == "sFtKSe5I"
     assert title == "Mataro Radio"
@@ -372,39 +352,30 @@ async def test_pick_random_station_returns_channel_from_random_place():
 @pytest.mark.asyncio
 async def test_resolve_radio_stream_url_prefers_redirect_location():
     session = DummySession([DummyResponse({}, status=302, headers={"Location": "https://stream.test/live"})])
-    cog = AudioCog(_make_bot(session=session))
+    cog = RadioCog(_make_bot(session=session))
 
-    stream_url = await cog._resolve_radio_stream_url("sFtKSe5I")
-
-    assert stream_url == "https://stream.test/live"
-
-
-@pytest.mark.asyncio
-async def test_extract_stream_url_with_ytdlp_returns_stream_url(monkeypatch):
-    cog = AudioCog(_make_bot())
-    monkeypatch.setattr("functions.tool.audio.get_running_loop", lambda: DummyLoop({"url": "https://stream.test/live"}))
-
-    stream_url = await cog._extract_stream_url_with_ytdlp("https://radio.garden/api/ara/content/listen/sFtKSe5I/channel.mp3")
+    stream_url = await cog.resolve_radio_stream_url("sFtKSe5I")
 
     assert stream_url == "https://stream.test/live"
 
 
 @pytest.mark.asyncio
-async def test_extract_stream_url_with_ytdlp_raises_when_missing_stream_url(monkeypatch):
-    cog = AudioCog(_make_bot())
-    monkeypatch.setattr("functions.tool.audio.get_running_loop", lambda: DummyLoop({"webpage_url": "https://example.test"}))
+async def test_resolve_radio_stream_url_returns_api_url_on_success_status():
+    session = DummySession([DummyResponse({}, status=200)])
+    cog = RadioCog(_make_bot(session=session))
 
-    with pytest.raises(ValueError):
-        await cog._extract_stream_url_with_ytdlp("https://radio.garden/api/ara/content/listen/sFtKSe5I/channel.mp3")
+    stream_url = await cog.resolve_radio_stream_url("sFtKSe5I")
+
+    assert stream_url == "https://radio.garden/api/ara/content/listen/sFtKSe5I/channel.mp3"
 
 
 @pytest.mark.asyncio
 async def test_resolve_radio_stream_url_raises_when_unplayable_status():
     session = DummySession([DummyResponse({}, status=403)])
-    cog = AudioCog(_make_bot(session=session))
+    cog = RadioCog(_make_bot(session=session))
 
     with pytest.raises(ValueError):
-        await cog._resolve_radio_stream_url("sFtKSe5I")
+        await cog.resolve_radio_stream_url("sFtKSe5I")
 
 
 @pytest.mark.asyncio
@@ -412,18 +383,17 @@ async def test_radio_does_not_join_voice_when_station_resolution_fails(monkeypat
     connected_client = DummyVoiceClient(connected=True)
     voice_channel = DummyVoiceChannel(connected_client=connected_client)
     interaction = _make_interaction(user=DummyMember(42, voice_channel=voice_channel), guild_id=1)
-    cog = AudioCog(_make_bot())
-    cog._resolve_radio_station = AsyncMock(side_effect=ValueError("No radio station found for that query."))
-    cog._resolve_radio_stream_url = AsyncMock()
-    cog._get_or_connect_voice_client = AsyncMock()
-    radio = RadioCog(cog)
-    monkeypatch.setattr("functions.tool.audio.Member", DummyMember)
+    radio = RadioCog(_make_bot())
+    radio.resolve_radio_station = AsyncMock(side_effect=ValueError("No radio station found for that query."))
+    radio.resolve_radio_stream_url = AsyncMock()
+    radio.engine.get_or_connect_voice_client = AsyncMock()
+    monkeypatch.setattr("functions.tool.radio.Member", DummyMember)
 
     await _radio_command("search").callback(radio, interaction, query="missing", region=None)
 
-    cog._resolve_radio_station.assert_awaited_once_with("missing", None)
-    cog._resolve_radio_stream_url.assert_not_awaited()
-    cog._get_or_connect_voice_client.assert_not_awaited()
+    radio.resolve_radio_station.assert_awaited_once_with("missing", None)
+    radio.resolve_radio_stream_url.assert_not_awaited()
+    radio.engine.get_or_connect_voice_client.assert_not_awaited()
     voice_channel.connect.assert_not_awaited()
     interaction.followup.send.assert_awaited_once_with(
         ":x: No radio station found for that query.",
@@ -436,20 +406,17 @@ async def test_radio_does_not_join_voice_when_stream_resolution_fails(monkeypatc
     connected_client = DummyVoiceClient(connected=True)
     voice_channel = DummyVoiceChannel(connected_client=connected_client)
     interaction = _make_interaction(user=DummyMember(42, voice_channel=voice_channel), guild_id=1)
-    cog = AudioCog(_make_bot())
-    cog._resolve_radio_station = AsyncMock(return_value=("sFtKSe5I", "Flaixbac"))
-    cog._extract_stream_url_with_ytdlp = AsyncMock(side_effect=ValueError("Could not resolve a playable radio stream."))
-    cog._resolve_radio_stream_url = AsyncMock(side_effect=ValueError("Could not resolve a playable radio stream."))
-    cog._get_or_connect_voice_client = AsyncMock()
-    radio = RadioCog(cog)
-    monkeypatch.setattr("functions.tool.audio.Member", DummyMember)
+    radio = RadioCog(_make_bot())
+    radio.resolve_radio_station = AsyncMock(return_value=("sFtKSe5I", "Flaixbac"))
+    radio.resolve_radio_stream_url = AsyncMock(side_effect=ValueError("Could not resolve a playable radio stream."))
+    radio.engine.get_or_connect_voice_client = AsyncMock()
+    monkeypatch.setattr("functions.tool.radio.Member", DummyMember)
 
     await _radio_command("search").callback(radio, interaction, query="flaixbac", region=None)
 
-    cog._resolve_radio_station.assert_awaited_once_with("flaixbac", None)
-    cog._extract_stream_url_with_ytdlp.assert_awaited_once_with("https://radio.garden/api/ara/content/listen/sFtKSe5I/channel.mp3")
-    cog._resolve_radio_stream_url.assert_awaited_once_with("sFtKSe5I")
-    cog._get_or_connect_voice_client.assert_not_awaited()
+    radio.resolve_radio_station.assert_awaited_once_with("flaixbac", None)
+    radio.resolve_radio_stream_url.assert_awaited_once_with("sFtKSe5I")
+    radio.engine.get_or_connect_voice_client.assert_not_awaited()
     voice_channel.connect.assert_not_awaited()
     interaction.followup.send.assert_awaited_once_with(
         ":x: Could not resolve a playable radio stream.",
@@ -462,17 +429,17 @@ async def test_radio_balloon_uses_random_station_path(monkeypatch):
     connected_client = DummyVoiceClient(connected=True)
     voice_channel = DummyVoiceChannel(connected_client=connected_client)
     interaction = _make_interaction(user=DummyMember(42, voice_channel=voice_channel), guild_id=1)
-    cog = AudioCog(_make_bot())
-    cog._resolve_radio_station = AsyncMock(return_value=("sFtKSe5I", "Flaixbac"))
-    cog._extract_stream_url_with_ytdlp = AsyncMock(return_value="https://stream.test/live")
-    cog._enqueue_or_play = AsyncMock()
-    radio = RadioCog(cog)
-    monkeypatch.setattr("functions.tool.audio.Member", DummyMember)
+    radio = RadioCog(_make_bot())
+    radio.resolve_radio_station = AsyncMock(return_value=("sFtKSe5I", "Flaixbac"))
+    radio.resolve_radio_stream_url = AsyncMock(return_value="https://stream.test/live")
+    radio.engine.enqueue_or_play = AsyncMock()
+    monkeypatch.setattr("functions.tool.radio.Member", DummyMember)
 
     await _radio_command("balloon").callback(radio, interaction)
 
-    cog._resolve_radio_station.assert_awaited_once_with(None, None)
-    cog._enqueue_or_play.assert_awaited_once()
+    radio.resolve_radio_station.assert_awaited_once_with(None, None)
+    radio.resolve_radio_stream_url.assert_awaited_once_with("sFtKSe5I")
+    radio.engine.enqueue_or_play.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -480,11 +447,11 @@ async def test_play_connects_before_enqueue(monkeypatch):
     connected_client = DummyVoiceClient(connected=True)
     voice_channel = DummyVoiceChannel(connected_client=connected_client)
     interaction = _make_interaction(user=DummyMember(42, voice_channel=voice_channel), guild_id=1)
-    cog = AudioCog(_make_bot())
-    cog._enqueue_or_play = AsyncMock()
-    monkeypatch.setattr("functions.tool.audio.Member", DummyMember)
+    cog = MusicCog(_make_bot())
+    cog.engine.enqueue_or_play = AsyncMock()
+    monkeypatch.setattr("functions.tool.music.Member", DummyMember)
     monkeypatch.setattr(
-        "functions.tool.audio.get_running_loop",
+        "functions.tool.music.get_running_loop",
         lambda: DummyLoop(
             {
                 "url": "https://stream.test/live",
@@ -495,30 +462,30 @@ async def test_play_connects_before_enqueue(monkeypatch):
         ),
     )
 
-    await AudioCog.play.callback(cog, interaction, query="track")
+    await MusicCog.play.callback(cog, interaction, query="track")
 
     voice_channel.connect.assert_awaited_once()
-    assert cog.voice_clients[1] is connected_client
-    cog._enqueue_or_play.assert_awaited_once()
+    assert cog.engine.voice_clients[1] is connected_client
+    cog.engine.enqueue_or_play.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_pick_random_station_raises_when_no_places():
     session = DummySession([{"data": {"list": []}}])
-    cog = AudioCog(_make_bot(session=session))
+    cog = RadioCog(_make_bot(session=session))
 
     with pytest.raises(ValueError):
-        await cog._pick_random_station()
+        await cog.pick_random_station()
 
 
 @pytest.mark.asyncio
 async def test_enqueue_or_play_queues_when_playing():
     vc = DummyVoiceClient(connected=True, playing=True)
-    cog = AudioCog(_make_bot())
+    cog = AudioEngine(_make_bot())
     cog.voice_clients[1] = vc
     followup = AsyncMock()
 
-    await cog._enqueue_or_play(
+    await cog.enqueue_or_play(
         1,
         source_url="https://radio.garden/listen/mataroradio/sFtKSe5I",
         title="Mataro Radio",
@@ -527,19 +494,19 @@ async def test_enqueue_or_play_queues_when_playing():
         followup=followup,
     )
 
-    assert cog.queues[1][0][1] == "Mataro Radio"
+    assert cog.queues[1][0].title == "Mataro Radio"
     followup.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_enqueue_or_play_rejects_when_queue_is_full():
     vc = DummyVoiceClient(connected=True, playing=True)
-    cog = AudioCog(_make_bot())
+    cog = AudioEngine(_make_bot())
     cog.voice_clients[1] = vc
-    cog.queues[1] = deque([("u", "t", "d", None)] * 25)
+    cog.queues[1] = deque([QueueItem("u", "t", "d")] * 25)
     followup = AsyncMock()
 
-    await cog._enqueue_or_play(
+    await cog.enqueue_or_play(
         1,
         source_url="https://youtube.test/watch?v=abc",
         title="Track",
@@ -558,10 +525,10 @@ async def test_enqueue_or_play_rejects_when_queue_is_full():
 @pytest.mark.asyncio
 async def test_queue_displays_queued_items():
     interaction = _make_interaction(user=object(), guild_id=1)
-    cog = AudioCog(_make_bot())
-    cog.queues[1] = deque([("url", "Queued Track", "3:00", None)])
+    cog = MusicCog(_make_bot())
+    cog.engine.queues[1] = deque([QueueItem("url", "Queued Track", "3:00")])
 
-    await AudioCog.queue.callback(cog, interaction)
+    await MusicCog.queue.callback(cog, interaction)
 
     embed = interaction.response.send_message.await_args.kwargs["embed"]
     assert embed.description == "1. Queued Track [3:00]"
@@ -570,13 +537,13 @@ async def test_queue_displays_queued_items():
 @pytest.mark.asyncio
 async def test_disconnect_and_cleanup_clears_all_state():
     vc = DummyVoiceClient(connected=True, playing=True)
-    cog = AudioCog(_make_bot())
+    cog = AudioEngine(_make_bot())
     cog.voice_clients[1] = vc
-    cog.queues[1] = deque([("u", "t", "d", None)])
+    cog.queues[1] = deque([QueueItem("u", "t", "d")])
     cog.currently_playing[1] = ("u", "t", "d")
     cog.command_channels[1] = object()
 
-    await cog._disconnect_and_cleanup(1)
+    await cog.disconnect_and_cleanup(1)
 
     vc.stop.assert_called_once()
     vc.disconnect.assert_awaited_once()
@@ -588,28 +555,28 @@ async def test_disconnect_and_cleanup_clears_all_state():
 
 @pytest.mark.asyncio
 async def test_play_next_pulls_from_queue(monkeypatch):
-    cog = AudioCog(_make_bot())
+    cog = AudioEngine(_make_bot())
     cog.voice_clients[1] = DummyVoiceClient(connected=True)
-    cog.queues[1] = deque([("url", "title", "3:00", None)])
-    cog._play_next_track_and_announce = AsyncMock()
+    cog.queues[1] = deque([QueueItem("url", "title", "3:00")])
+    cog.play_next_track_and_announce = AsyncMock()
     scheduled = []
 
     def fake_run(coro, _loop):
         scheduled.append(coro)
 
-    monkeypatch.setattr("functions.tool.audio.run_coroutine_threadsafe", fake_run)
-    cog._play_next(1)
+    monkeypatch.setattr("functions.tool._audio_engine.run_coroutine_threadsafe", fake_run)
+    cog.play_next(1)
     await scheduled[0]
 
-    cog._play_next_track_and_announce.assert_awaited_once_with(1, "url", "title", "3:00", None)
+    cog.play_next_track_and_announce.assert_awaited_once_with(1, "url", "title", "3:00", None, None)
     assert cog.queues[1] == deque()
 
 
 @pytest.mark.asyncio
 async def test_play_next_cleans_state_when_voice_disconnected(monkeypatch):
-    cog = AudioCog(_make_bot())
+    cog = AudioEngine(_make_bot())
     cog.voice_clients[1] = DummyVoiceClient(connected=False)
-    cog.queues[1] = deque([("u", "t", "d", None)])
+    cog.queues[1] = deque([QueueItem("u", "t", "d")])
     cog.currently_playing[1] = ("u", "t", "d")
     cog.command_channels[1] = object()
     scheduled = []
@@ -617,8 +584,8 @@ async def test_play_next_cleans_state_when_voice_disconnected(monkeypatch):
     def fake_run(coro, _loop):
         scheduled.append(coro)
 
-    monkeypatch.setattr("functions.tool.audio.run_coroutine_threadsafe", fake_run)
-    cog._play_next(1)
+    monkeypatch.setattr("functions.tool._audio_engine.run_coroutine_threadsafe", fake_run)
+    cog.play_next(1)
     await scheduled[0]
 
     assert cog.voice_clients == {}

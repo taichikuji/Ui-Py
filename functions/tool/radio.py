@@ -1,0 +1,250 @@
+import logging
+from random import choice, sample
+from typing import TYPE_CHECKING
+from urllib.parse import urljoin, urlparse
+
+from discord import Interaction, Member, app_commands
+from discord.ext import commands
+
+from ._audio_engine import get_audio_engine
+
+if TYPE_CHECKING:
+    from main import UiPy
+
+logger = logging.getLogger(__name__)
+
+
+class RadioCog(commands.GroupCog, group_name="radio", group_description="Play Radio Garden stations."):
+    """Groupped Radio based commands."""
+
+    RADIO_ENDPOINT = "https://radio.garden/api"
+
+    def __init__(self, bot: "UiPy"):
+        self.bot = bot
+        self.engine = get_audio_engine(bot)
+
+    @app_commands.command(name="search", description="Play a Radio Garden station by search, URL, or channel ID.")
+    @app_commands.describe(query="A station query, radio URL, or channel ID.", region="Optional region/country hint.")
+    async def search(self, interaction: Interaction, query: str, region: str | None = None):
+        if not query or not query.strip():
+            await interaction.response.send_message(":x: You must provide a station query, URL, or channel ID.", ephemeral=True)
+            return
+
+        await self.play_resolved_radio_station(interaction, query, region)
+
+    @app_commands.command(name="balloon", description="Play a random Radio Garden station.")
+    async def balloon(self, interaction: Interaction):
+        await self.play_resolved_radio_station(interaction, None, None)
+
+    async def play_resolved_radio_station(
+        self, interaction: Interaction, query: str | None, region: str | None
+    ) -> None:
+        if (guild_id := interaction.guild_id) is None:
+            await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
+            return
+        if not isinstance(user := interaction.user, Member):
+            await interaction.response.send_message(":x: This command can only be used in a server.", ephemeral=True)
+            return
+        if not user.voice or not user.voice.channel:
+            await interaction.response.send_message(":x: You need to be in a voice channel to use this command.", ephemeral=True)
+            return
+
+        await interaction.response.defer()
+        channel = interaction.channel
+        if channel is None or not hasattr(channel, "send"):
+            await interaction.followup.send(":x: This command must be used in a text channel.", ephemeral=True)
+            return
+
+        try:
+            channel_id, title = await self.resolve_radio_station(query, region)
+        except ValueError as e:
+            await interaction.followup.send(f":x: {e}", ephemeral=True)
+            return
+        except Exception as e:
+            logger.error("radio station resolution failed: %s", e)
+            await interaction.followup.send(":x: Failed to reach radio source. Try again later.", ephemeral=True)
+            return
+
+        stream_api_url = f"{self.RADIO_ENDPOINT}/ara/content/listen/{channel_id}/channel.mp3"
+        try:
+            stream_url = await self.resolve_radio_stream_url(channel_id)
+        except ValueError as e:
+            await interaction.followup.send(f":x: {e}", ephemeral=True)
+            return
+        except Exception as e:
+            logger.error("radio stream URL resolution failed: %s", e)
+            await interaction.followup.send(":x: Failed to reach radio source. Try again later.", ephemeral=True)
+            return
+
+        if await self.engine.get_or_connect_voice_client(guild_id, user.voice.channel, interaction) is None:
+            return
+        self.engine.command_channels[guild_id] = channel
+
+        await self.engine.enqueue_or_play(
+            guild_id,
+            source_url=stream_api_url,
+            title=title,
+            duration="LIVE",
+            stream_url=stream_url,
+            followup=interaction.followup.send,
+            now_playing_message=f":radio: Playing **{title}** on Radio Garden",
+            queue_message=f":ballot_box_with_check: Added to queue: :radio: **{title}** [LIVE]",
+        )
+
+    async def resolve_radio_station(self, query: str | None, region: str | None = None) -> tuple[str, str]:
+        if query is None:
+            return await self.pick_random_station()
+
+        raw = query.strip()
+        if not raw:
+            raise ValueError("You must provide a station query, URL, or channel ID.")
+        if channel_id := self.extract_channel_id(raw):
+            if channel := (await self.fetch_json(f"{self.RADIO_ENDPOINT}/ara/content/channel/{channel_id}") or {}).get("data"):
+                title = channel.get("title") or "Unknown Station"
+                return channel_id, title
+
+        channel = await self.search_radio_channel(raw, region)
+        if channel is None:
+            if region:
+                raise ValueError(f"No radio station found for query '{raw}' in region '{region}'.")
+            raise ValueError("No radio station found for that query.")
+
+        if not (channel_id := self.channel_id_from_href(channel.get("url"))):
+            raise ValueError("Could not resolve a station stream ID from search results.")
+        title = channel.get("title") or "Unknown Station"
+        return channel_id, title
+
+    @staticmethod
+    def extract_channel_id(value: str) -> str | None:
+        raw = value.strip()
+        if not raw:
+            return None
+        parsed = urlparse(value)
+        if parsed.scheme and parsed.netloc:
+            if parsed.netloc.lower() not in {"radio.garden", "www.radio.garden"}:
+                return None
+            return RadioCog.channel_id_from_href(parsed.path)
+        return raw
+
+    async def pick_random_station(self) -> tuple[str, str]:
+        places_payload = await self.fetch_json(f"{self.RADIO_ENDPOINT}/ara/content/places")
+        places = (places_payload or {}).get("data", {}).get("list") or []
+        if not places:
+            raise ValueError("No radio places available.")
+
+        for place in sample(places, k=min(len(places), 5)):
+            place_id = place.get("id")
+            if not place_id:
+                continue
+
+            channels = await self.fetch_place_channels(place_id)
+            if not channels:
+                continue
+
+            station = choice(channels)
+            if not (channel_id := self.channel_id_from_href(station.get("href") or station.get("url"))):
+                continue
+            title = station.get("title") or "Unknown Station"
+            return channel_id, title
+
+        raise ValueError("Could not find a random radio station. Try again.")
+
+    async def fetch_place_channels(self, place_id: str) -> list[dict]:
+        payload = await self.fetch_json(f"{self.RADIO_ENDPOINT}/ara/content/page/{place_id}/channels")
+        content = (payload or {}).get("data", {}).get("content") or []
+        if not content:
+            return []
+        channels = []
+        for item in content[0].get("items") or []:
+            if channel := self.radio_station_page(item):
+                channels.append(channel)
+        return channels
+
+    async def resolve_radio_stream_url(self, channel_id: str) -> str:
+        stream_api_url = f"{self.RADIO_ENDPOINT}/ara/content/listen/{channel_id}/channel.mp3"
+        if self.bot.session is None:
+            raise RuntimeError("HTTP session is not available.")
+
+        try:
+            async with self.bot.session.get(stream_api_url, allow_redirects=False, timeout=10) as resp:
+                redirect_statuses = {301, 302, 303, 307, 308}
+                if resp.status in redirect_statuses:
+                    location = resp.headers.get("Location")
+                    if location:
+                        return urljoin(stream_api_url, location)
+                if resp.status == 200:
+                    return stream_api_url
+        except Exception as e:
+            logger.error("HTTP request failed for %s: %s", stream_api_url, e)
+            raise ValueError("Could not resolve a playable radio stream.") from e
+
+        raise ValueError("Could not resolve a playable radio stream.")
+
+    async def search_radio_channel(self, query: str, region: str | None = None) -> dict | None:
+        search_query = query.strip()
+        if region and region.strip() and region.strip().lower() not in search_query.lower():
+            search_query = f"{search_query} {region.strip()}"
+        payload = await self.fetch_json(f"{self.RADIO_ENDPOINT}/search", params={"q": search_query})
+        hits = (payload or {}).get("hits", {}).get("hits") or []
+        region_match: dict | None = None
+        for hit in hits:
+            source = hit.get("_source") or {}
+            channel = self.radio_station_page(source)
+            if not channel:
+                continue
+            if self.channel_id_from_href(channel.get("url")):
+                if region and self.matches_region(channel, region):
+                    return channel
+                if region_match is None:
+                    region_match = channel
+                if not region:
+                    return channel
+        if region:
+            return None
+        return region_match
+
+    @staticmethod
+    def radio_station_page(source: dict) -> dict | None:
+        page = source.get("page")
+        if isinstance(page, dict):
+            return page if page.get("type") == "channel" else None
+        return source if source.get("type") == "channel" else None
+
+    @staticmethod
+    def matches_region(source: dict, region: str) -> bool:
+        region_value = region.strip().lower()
+        if not region_value:
+            return True
+        subtitle = str(source.get("subtitle") or "").lower()
+        title = str(source.get("title") or "").lower()
+        place = source.get("place") if isinstance(source.get("place"), dict) else {}
+        country = source.get("country") if isinstance(source.get("country"), dict) else {}
+        place_title = str(place.get("title") or "").lower()
+        country_title = str(country.get("title") or "").lower()
+        return region_value in subtitle or region_value in title or region_value in place_title or region_value in country_title
+
+    async def fetch_json(self, url: str, *, params: dict | None = None) -> dict | None:
+        if self.bot.session is None:
+            raise RuntimeError("HTTP session is not available.")
+        try:
+            async with self.bot.session.get(url, params=params, timeout=10) as resp:
+                if resp.status != 200:
+                    return None
+                return await resp.json(content_type=None)
+        except Exception as e:
+            logger.error("HTTP request failed for %s: %s", url, e)
+            return None
+
+    @staticmethod
+    def channel_id_from_href(href: str | None) -> str | None:
+        if not href:
+            return None
+        segments = [seg for seg in urlparse(href).path.split("/") if seg]
+        if len(segments) >= 3 and segments[-3] == "listen":
+            return segments[-1]
+        return None
+
+
+async def setup(bot: "UiPy"):
+    """Add the RadioCog to the bot."""
+    await bot.add_cog(RadioCog(bot))
