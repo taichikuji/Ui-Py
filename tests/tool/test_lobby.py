@@ -11,6 +11,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from functions.tool.lobby import LobbyCog, RenameModal, VoiceControlView
 
 
+def test_set_generator_keeps_optional_channel_description():
+    channel_param = LobbyCog.set_generator.parameters[0]
+    assert LobbyCog.set_generator.name == "set"
+    assert channel_param.name == "channel"
+    assert channel_param.description == "The voice channel to use as a lobby generator. Leave empty to clear."
+    assert channel_param.required is False
+
+
 class DummyBot:
     def __init__(self, db_path: Path):
         self.db_path = str(db_path)

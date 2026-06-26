@@ -214,7 +214,7 @@ async def test_get_lobby_guardrails(monkeypatch, tmp_path):
     await SteamCog.get_lobby.callback(cog, interaction)
     interaction.followup.send.assert_awaited_with(
         ":information_source: Your Steam account is not linked. "
-        "Please use the `/link <your_steam_id_or_vanity_name>` command first."
+        "Please use the `/steam link <your_steam_id_or_vanity_name>` command first."
     )
 
 

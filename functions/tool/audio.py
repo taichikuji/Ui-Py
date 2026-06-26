@@ -92,9 +92,9 @@ class AudioCog(commands.Cog):
             followup=interaction.followup.send,
         )
 
-    @app_commands.command(name="radio", description="Play a radio station from a radio source. Random if no input.")
-    @app_commands.describe(query="A station query, radio URL, or channel ID.", region="Optional region/country hint.")
-    async def radio(self, interaction: Interaction, query: str | None = None, region: str | None = None):
+    async def _play_resolved_radio_station(
+        self, interaction: Interaction, query: str | None, region: str | None
+    ) -> None:
         if (guild_id := interaction.guild_id) is None:
             await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
             return
@@ -610,6 +610,28 @@ class AudioCog(commands.Cog):
             await interaction.response.send_message(":x: The music queue is currently empty.", ephemeral=True)
 
 
+class RadioCog(commands.GroupCog, group_name="radio", group_description="Play Radio Garden stations."):
+    """Grouped Radio Garden slash commands."""
+
+    def __init__(self, audio: AudioCog):
+        self.audio = audio
+
+    @app_commands.command(name="search", description="Play a Radio Garden station by search, URL, or channel ID.")
+    @app_commands.describe(query="A station query, radio URL, or channel ID.", region="Optional region/country hint.")
+    async def search(self, interaction: Interaction, query: str, region: str | None = None):
+        if not query or not query.strip():
+            await interaction.response.send_message(":x: You must provide a station query, URL, or channel ID.", ephemeral=True)
+            return
+
+        await self.audio._play_resolved_radio_station(interaction, query, region)
+
+    @app_commands.command(name="balloon", description="Play a random Radio Garden station.")
+    async def balloon(self, interaction: Interaction):
+        await self.audio._play_resolved_radio_station(interaction, None, None)
+
+
 async def setup(bot: "UiPy"):
-    """Add the AudioCog to the bot."""
-    await bot.add_cog(AudioCog(bot))
+    """Add the audio cogs to the bot."""
+    audio = AudioCog(bot)
+    await bot.add_cog(audio)
+    await bot.add_cog(RadioCog(audio))

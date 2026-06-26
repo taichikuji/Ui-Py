@@ -74,7 +74,7 @@ class RenameModal(Modal, title="Rename Channel"):
         )
 
 
-class LobbyCog(commands.Cog):
+class LobbyCog(commands.GroupCog, group_name="lobby", group_description="Dynamic voice lobby tools."):
     """Cog for dynamic voice channel creation and cleanup."""
     def __init__(self, bot: "UiPy"):
         self.bot = bot

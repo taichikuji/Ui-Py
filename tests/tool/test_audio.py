@@ -8,7 +8,22 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from functions.tool.audio import AudioCog
+from functions.tool.audio import AudioCog, RadioCog
+
+
+def _radio_command(name: str):
+    return getattr(RadioCog, name)
+
+
+def test_radio_subcommand_option_contracts():
+    search = _radio_command("search")
+    balloon = _radio_command("balloon")
+
+    assert [(param.name, param.required) for param in search.parameters] == [
+        ("query", True),
+        ("region", False),
+    ]
+    assert balloon.parameters == []
 
 
 class DummyMember:
@@ -401,9 +416,10 @@ async def test_radio_does_not_join_voice_when_station_resolution_fails(monkeypat
     cog._resolve_radio_station = AsyncMock(side_effect=ValueError("No radio station found for that query."))
     cog._resolve_radio_stream_url = AsyncMock()
     cog._get_or_connect_voice_client = AsyncMock()
+    radio = RadioCog(cog)
     monkeypatch.setattr("functions.tool.audio.Member", DummyMember)
 
-    await AudioCog.radio.callback(cog, interaction, query="missing", region=None)
+    await _radio_command("search").callback(radio, interaction, query="missing", region=None)
 
     cog._resolve_radio_station.assert_awaited_once_with("missing", None)
     cog._resolve_radio_stream_url.assert_not_awaited()
@@ -425,9 +441,10 @@ async def test_radio_does_not_join_voice_when_stream_resolution_fails(monkeypatc
     cog._extract_stream_url_with_ytdlp = AsyncMock(side_effect=ValueError("Could not resolve a playable radio stream."))
     cog._resolve_radio_stream_url = AsyncMock(side_effect=ValueError("Could not resolve a playable radio stream."))
     cog._get_or_connect_voice_client = AsyncMock()
+    radio = RadioCog(cog)
     monkeypatch.setattr("functions.tool.audio.Member", DummyMember)
 
-    await AudioCog.radio.callback(cog, interaction, query="flaixbac", region=None)
+    await _radio_command("search").callback(radio, interaction, query="flaixbac", region=None)
 
     cog._resolve_radio_station.assert_awaited_once_with("flaixbac", None)
     cog._extract_stream_url_with_ytdlp.assert_awaited_once_with("https://radio.garden/api/ara/content/listen/sFtKSe5I/channel.mp3")
@@ -438,6 +455,24 @@ async def test_radio_does_not_join_voice_when_stream_resolution_fails(monkeypatc
         ":x: Could not resolve a playable radio stream.",
         ephemeral=True,
     )
+
+
+@pytest.mark.asyncio
+async def test_radio_balloon_uses_random_station_path(monkeypatch):
+    connected_client = DummyVoiceClient(connected=True)
+    voice_channel = DummyVoiceChannel(connected_client=connected_client)
+    interaction = _make_interaction(user=DummyMember(42, voice_channel=voice_channel), guild_id=1)
+    cog = AudioCog(_make_bot())
+    cog._resolve_radio_station = AsyncMock(return_value=("sFtKSe5I", "Flaixbac"))
+    cog._extract_stream_url_with_ytdlp = AsyncMock(return_value="https://stream.test/live")
+    cog._enqueue_or_play = AsyncMock()
+    radio = RadioCog(cog)
+    monkeypatch.setattr("functions.tool.audio.Member", DummyMember)
+
+    await _radio_command("balloon").callback(radio, interaction)
+
+    cog._resolve_radio_station.assert_awaited_once_with(None, None)
+    cog._enqueue_or_play.assert_awaited_once()
 
 
 @pytest.mark.asyncio

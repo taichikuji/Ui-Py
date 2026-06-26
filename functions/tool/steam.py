@@ -18,7 +18,7 @@ except Exception as e:
     logger.error("Failed to load STEAM_TOKEN from environment. %s", e)
     STEAM_TOKEN = None
 
-class SteamCog(commands.Cog):
+class SteamCog(commands.GroupCog, group_name="steam", group_description="Steam account linking and lobby tools."):
     """Cog for Steam integration, linking accounts and fetching lobby information."""
     def __init__(self, bot: "UiPy"):
         self.bot = bot
@@ -98,7 +98,7 @@ class SteamCog(commands.Cog):
         # Default return if no resolution
         return None
 
-    @app_commands.command( name="link-steam", description="Link your Discord account to a Steam ID or vanity URL." )
+    @app_commands.command(name="link", description="Link your Discord account to a Steam ID or vanity URL.")
     async def link_steam(self, interaction: Interaction, steam_identifier: str):
         await interaction.response.defer(ephemeral=True)
         
@@ -147,7 +147,7 @@ class SteamCog(commands.Cog):
         if not (linked_steam_id := await self._get_steam_link(interaction.user.id)):
             await interaction.followup.send(
                 ":information_source: Your Steam account is not linked. "
-                "Please use the `/link <your_steam_id_or_vanity_name>` command first."
+                "Please use the `/steam link <your_steam_id_or_vanity_name>` command first."
             )
             return
         
