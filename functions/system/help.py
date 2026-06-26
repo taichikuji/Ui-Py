@@ -4,11 +4,11 @@ from discord import Embed, Interaction, app_commands
 from discord.ext import commands
 
 if TYPE_CHECKING:
-    from main import UiPy
+    from main import Sakamoto
 
 
 class HelpCog(commands.Cog):
-    def __init__(self, bot: "UiPy"):
+    def __init__(self, bot: "Sakamoto"):
         self.bot = bot
 
     @app_commands.command(
@@ -43,5 +43,5 @@ class HelpCog(commands.Cog):
                 )
 
 
-async def setup(bot: "UiPy"):
+async def setup(bot: "Sakamoto"):
     await bot.add_cog(HelpCog(bot))

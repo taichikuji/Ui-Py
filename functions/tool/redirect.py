@@ -5,12 +5,12 @@ from discord import Message
 from discord.ext import commands
 
 if TYPE_CHECKING:
-    from main import UiPy
+    from main import Sakamoto
 
 
 class ReplaceCog(commands.Cog):
     """Cog for replacing social media links with alternative frontends."""
-    def __init__(self, bot: "UiPy"):
+    def __init__(self, bot: "Sakamoto"):
         self.bot = bot
         self.patterns: list[tuple[Pattern[str], str]] = [
             (compile(r'https?://(?:www\.)?(?:x|twitter)\.com/(?P<user>[^/\s]+)/status/(?P<id>\d+)(?:\?[^ \s]*)?'),
@@ -46,5 +46,5 @@ class ReplaceCog(commands.Cog):
             await message.channel.send(fixed)
 
 
-async def setup(bot: "UiPy"):
+async def setup(bot: "Sakamoto"):
     await bot.add_cog(ReplaceCog(bot))

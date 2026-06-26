@@ -6,14 +6,14 @@ from discord import Interaction, app_commands
 from discord.ext import commands
 
 if TYPE_CHECKING:
-    from main import UiPy
+    from main import Sakamoto
 
 logger = logging.getLogger(__name__)
 
 
 class LoaderCog(commands.Cog):
     """Cog for loading, unloading, and reloading extensions."""
-    def __init__(self, bot: "UiPy"):
+    def __init__(self, bot: "Sakamoto"):
         self.bot = bot
 
     @app_commands.command(
@@ -112,6 +112,6 @@ class LoaderCog(commands.Cog):
         else:
             logger.error("Unexpected error in command: %s", error)
 
-async def setup(bot: "UiPy"):
+async def setup(bot: "Sakamoto"):
     """Add the LoaderCog to the bot."""
     await bot.add_cog(LoaderCog(bot))

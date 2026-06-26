@@ -9,7 +9,7 @@ from discord.ext import commands
 from ._audio_engine import get_audio_engine
 
 if TYPE_CHECKING:
-    from main import UiPy
+    from main import Sakamoto
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class RadioCog(commands.GroupCog, group_name="radio", group_description="Play ra
 
     RADIO_ENDPOINT = "https://radio.garden/api"
 
-    def __init__(self, bot: "UiPy"):
+    def __init__(self, bot: "Sakamoto"):
         self.bot = bot
         self.engine = get_audio_engine(bot)
 
@@ -245,6 +245,6 @@ class RadioCog(commands.GroupCog, group_name="radio", group_description="Play ra
         return None
 
 
-async def setup(bot: "UiPy"):
+async def setup(bot: "Sakamoto"):
     """Add the RadioCog to the bot."""
     await bot.add_cog(RadioCog(bot))

@@ -8,13 +8,13 @@ from discord.ext import commands
 from discord.ui import Button, View, button
 
 if TYPE_CHECKING:
-    from main import UiPy
+    from main import Sakamoto
 
 logger = logging.getLogger(__name__)
 
 
 class VotekickView(View):
-    def __init__(self, bot: "UiPy", required_votes: int, author: Member, target: Member):
+    def __init__(self, bot: "Sakamoto", required_votes: int, author: Member, target: Member):
         super().__init__(timeout=60.0)
         self.bot = bot
         self.required_votes = required_votes
@@ -94,7 +94,7 @@ class VotekickView(View):
 
 class ModerationCog(commands.Cog):
     """Cog for moderation commands."""
-    def __init__(self, bot: "UiPy"):
+    def __init__(self, bot: "Sakamoto"):
         self.bot = bot
         self.votekicks: dict[int, Message] = {}
 
@@ -158,5 +158,5 @@ class ModerationCog(commands.Cog):
         self.votekicks.pop(member.id, None)
 
 
-async def setup(bot: "UiPy"):
+async def setup(bot: "Sakamoto"):
     await bot.add_cog(ModerationCog(bot))

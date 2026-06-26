@@ -1,6 +1,6 @@
-# Ui-Py Context
+# Sakamoto Context
 
-Ui-Py is a voice-first Discord community bot for small-to-medium servers. This glossary defines the canonical language for voice sessions, moderation actions, and optional integrations.
+Sakamoto is a voice-first Discord community bot for small-to-medium servers. This glossary defines the canonical language for voice sessions, moderation actions, and optional integrations.
 
 ## Language
 

@@ -1,6 +1,6 @@
 ---
 name: Feature Request
-about: Suggest a new feature or enhancement for Ui-Py
+about: Suggest a new feature or enhancement for Sakamoto
 title: "[FEATURE] "
 labels: enhancement
 assignees: ''

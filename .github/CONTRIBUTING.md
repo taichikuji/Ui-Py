@@ -1,6 +1,6 @@
-# Contributing to Ui-Py
+# Contributing to Sakamoto
 
-Thank you for your interest in contributing to Ui-Py! This document provides guidelines and instructions for contributing to the project.
+Thank you for your interest in contributing to Sakamoto! This document provides guidelines and instructions for contributing to the project.
 
 ## Code of Conduct
 
@@ -10,7 +10,7 @@ Please be respectful and considerate of others when contributing to this project
 
 ### Reporting Bugs
 
-If you've found a bug in Ui-Py, please create an issue using the bug report template. To ensure we can address your bug quickly, please:
+If you've found a bug in Sakamoto, please create an issue using the bug report template. To ensure we can address your bug quickly, please:
 
 1. Check if the bug has already been reported
 2. Use the Bug Report template when creating a new issue on GitHub
@@ -55,7 +55,7 @@ To set up the project for local development:
 
 ## Project Structure
 
-Ui-Py follows a modular architecture:
+Sakamoto follows a modular architecture:
 
 - `main.py`: Core bot initialization and setup
 - `functions/`: Contains all bot extensions
@@ -106,4 +106,4 @@ If you're adding new features or changing existing ones, please update the docum
 
 If you have any questions about contributing, please open an issue with your question or reach out to the project maintainers.
 
-Thank you for contributing to Ui-Py!
+Thank you for contributing to Sakamoto!

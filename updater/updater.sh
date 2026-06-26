@@ -35,7 +35,7 @@ main() {
 
     # 2. Extract unique Service Names directly from containers with the specific label
     SERVICES=$(docker ps -a \
-        --filter "label=com.taichikuji.ui-py.enable=true" \
+        --filter "label=com.taichikuji.sakamoto.enable=true" \
         --filter "label=com.docker.compose.project=$PROJECT" \
         --format '{{.Label "com.docker.compose.service"}}' \
         | sort -u)

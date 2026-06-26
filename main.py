@@ -8,18 +8,18 @@ from discord.ext import commands
 from discord.utils import setup_logging
 
 setup_logging()
-logger = logging.getLogger("UiPy")
+logger = logging.getLogger("Sakamoto")
 
 if (TOKEN := environ.get("TOKEN")) is None:
     raise OSError("TOKEN environment variable not set")
 
 
-class UiPy(commands.AutoShardedBot):
+class Sakamoto(commands.AutoShardedBot):
     def __init__(self):
         intents = Intents.default()
         intents.message_content = True
         super().__init__(
-            description="Do you want coffee, or tea?",
+            description="You thought all I say is meow?",
             command_prefix=commands.when_mentioned,
             case_insensitive=True,
             intents=intents,
@@ -27,7 +27,7 @@ class UiPy(commands.AutoShardedBot):
         self._bot_token = TOKEN
         self.session: ClientSession | None = None
         self.color = 0xFF3351
-        self.db_path = "data/ui.sqlite"
+        self.db_path = "data/sakamoto.sqlite"
 
     async def setup_hook(self):
         self.session = ClientSession()
@@ -74,5 +74,5 @@ class UiPy(commands.AutoShardedBot):
 
 
 if __name__ == "__main__":
-    logger.info("Starting Ui-Py...")
-    UiPy().run()
+    logger.info("Starting Sakamoto...")
+    Sakamoto().run()

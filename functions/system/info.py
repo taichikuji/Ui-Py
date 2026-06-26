@@ -8,11 +8,11 @@ from discord.ext import commands
 from psutil import Process, boot_time
 
 if TYPE_CHECKING:
-    from main import UiPy
+    from main import Sakamoto
 
 
 class InfoCog(commands.Cog):
-    def __init__(self, bot: "UiPy"):
+    def __init__(self, bot: "Sakamoto"):
         self.bot = bot
 
     @app_commands.command(
@@ -31,7 +31,7 @@ class InfoCog(commands.Cog):
             "fields": [
                 {
                     "name": "Bot version",
-                    "value": f"**Python**: {python_version()}\n**Ui-Py**: v2.2.0",
+                    "value": f"**Python**: {python_version()}\n**Sakamoto**: v3.0.0",
                     "inline": True,
                 },
                 {"name": "OS", "value": f"**{system()}**: {machine()}", "inline": True},
@@ -59,5 +59,5 @@ class InfoCog(commands.Cog):
         return f"{uptime_hours} hours, {uptime_minutes} minutes"
 
 
-async def setup(bot: "UiPy"):
+async def setup(bot: "Sakamoto"):
     await bot.add_cog(InfoCog(bot))

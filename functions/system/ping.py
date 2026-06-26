@@ -4,12 +4,12 @@ from discord import Interaction, app_commands
 from discord.ext import commands
 
 if TYPE_CHECKING:
-    from main import UiPy
+    from main import Sakamoto
 
 
 class PingCog(commands.Cog):
     """Cog for checking bot latency."""
-    def __init__(self, bot: "UiPy"):
+    def __init__(self, bot: "Sakamoto"):
         self.bot = bot
 
     @app_commands.command(
@@ -24,6 +24,6 @@ class PingCog(commands.Cog):
         )
 
 
-async def setup(bot: "UiPy"):
+async def setup(bot: "Sakamoto"):
     """Add the PingCog to the bot."""
     await bot.add_cog(PingCog(bot))

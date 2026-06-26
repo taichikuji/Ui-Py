@@ -2,10 +2,10 @@
 source <(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/misc/build.func)
 # Copyright (c) 2024-2026 taichikuji
 # Author: taichikuji
-# License: MIT | https://github.com/taichikuji/Ui-Py/raw/main/LICENSE
-# Source: https://github.com/taichikuji/Ui-Py
+# License: MIT | https://github.com/taichikuji/Sakamoto/raw/main/LICENSE
+# Source: https://github.com/taichikuji/Sakamoto
 
-APP="Ui-Py"
+APP="Sakamoto"
 var_tags="${var_tags:-discord;bot;python}"
 var_cpu="${var_cpu:-2}"
 var_ram="${var_ram:-1024}"
@@ -28,7 +28,7 @@ function update_script() {
   check_container_storage
   check_container_resources
 
-  if [[ ! -d /opt/uipy ]]; then
+  if [[ ! -d /opt/Sakamoto ]]; then
     msg_error "No ${APP} Installation Found!"
     exit
   fi
@@ -38,15 +38,15 @@ function update_script() {
   $STD apt-get upgrade -y
   msg_ok "Base system updated"
 
-  msg_info "Updating Ui-Py"
-  cd /opt/uipy
+  msg_info "Updating Sakamoto"
+  cd /opt/Sakamoto
   $STD git pull
   $STD pipenv install --deploy
-  msg_ok "Ui-Py updated"
+  msg_ok "Sakamoto updated"
 
-  msg_info "Restarting Ui-Py service"
-  systemctl restart uipy
-  msg_ok "Ui-Py service restarted"
+  msg_info "Restarting Sakamoto service"
+  systemctl restart Sakamoto
+  msg_ok "Sakamoto service restarted"
 
   msg_ok "Updated successfully!"
   exit
@@ -55,7 +55,7 @@ function update_script() {
 start
 build_container
 
-msg_info "Installing Ui-Py dependencies"
+msg_info "Installing Sakamoto dependencies"
 $STD lxc-attach -n "$CTID" -- bash -c "\
   apt-get update && \
   apt-get install -y \
@@ -69,29 +69,29 @@ $STD lxc-attach -n "$CTID" -- bash -c "\
     libnacl-dev \
     libopus-dev \
     build-essential"
-msg_ok "Ui-Py dependencies installed"
+msg_ok "Sakamoto dependencies installed"
 
-msg_info "Cloning Ui-Py repository"
+msg_info "Cloning Sakamoto repository"
 $STD lxc-attach -n "$CTID" -- bash -c "\
-  git clone https://github.com/taichikuji/Ui-Py.git /opt/uipy"
-msg_ok "Ui-Py repository cloned"
+  git clone https://github.com/taichikuji/Sakamoto.git /opt/Sakamoto"
+msg_ok "Sakamoto repository cloned"
 
 msg_info "Installing Python packages"
 $STD lxc-attach -n "$CTID" -- bash -c "\
-  cd /opt/uipy && pipenv install --deploy"
+  cd /opt/Sakamoto && pipenv install --deploy"
 msg_ok "Python packages installed"
 
-msg_info "Setting up Ui-Py service"
-lxc-attach -n "$CTID" -- bash -c 'cat > /etc/systemd/system/uipy.service << EOF
+msg_info "Setting up Sakamoto service"
+lxc-attach -n "$CTID" -- bash -c 'cat > /etc/systemd/system/Sakamoto.service << EOF
 [Unit]
-Description=Ui-Py Discord Bot
+Description=Sakamoto Discord Bot
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/uipy
-EnvironmentFile=/opt/uipy/.env
+WorkingDirectory=/opt/Sakamoto
+EnvironmentFile=/opt/Sakamoto/.env
 ExecStart=/usr/bin/pipenv run python main.py
 Restart=on-failure
 RestartSec=10
@@ -101,7 +101,7 @@ WantedBy=multi-user.target
 EOF'
 
 lxc-attach -n "$CTID" -- bash -c "\
-  cat > /opt/uipy/.env << 'ENVEOF'
+  cat > /opt/Sakamoto/.env << 'ENVEOF'
 # Required: Your Discord bot token
 TOKEN=your_discord_bot_token_here
 
@@ -111,8 +111,8 @@ ENVEOF"
 
 $STD lxc-attach -n "$CTID" -- bash -c "\
   systemctl daemon-reload && \
-  systemctl enable uipy"
-msg_ok "Ui-Py service configured"
+  systemctl enable Sakamoto"
+msg_ok "Sakamoto service configured"
 
 description
 
@@ -125,10 +125,10 @@ echo -e "${INFO}${YW} Follow these steps to configure and start the bot:${CL}"
 echo -e "${TAB}${YW} 1. Enter the LXC container:${CL}"
 echo -e "${TAB}${TAB}${BGN}pct enter ${CTID}${CL}"
 echo -e "${TAB}${YW} 2. Edit the environment file:${CL}"
-echo -e "${TAB}${TAB}${BGN}nano /opt/uipy/.env${CL}"
+echo -e "${TAB}${TAB}${BGN}nano /opt/Sakamoto/.env${CL}"
 echo -e "${TAB}${YW} 3. Replace ${BGN}your_discord_bot_token_here${CL}${YW} with your actual Discord bot token${CL}"
 echo -e "${TAB}${YW} 4. (Optional) Add your Steam API token if you want Steam commands${CL}"
 echo -e "${TAB}${YW} 5. Start the bot:${CL}"
-echo -e "${TAB}${TAB}${BGN}systemctl start uipy${CL}"
+echo -e "${TAB}${TAB}${BGN}systemctl start Sakamoto${CL}"
 echo -e "${TAB}${YW} 6. Check the bot status:${CL}"
-echo -e "${TAB}${TAB}${BGN}systemctl status uipy${CL}"
+echo -e "${TAB}${TAB}${BGN}systemctl status Sakamoto${CL}"

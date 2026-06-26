@@ -10,7 +10,7 @@ from discord.ext import commands
 from discord.ui import Button, Modal, TextInput, View, button
 
 if TYPE_CHECKING:
-    from main import UiPy
+    from main import Sakamoto
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +76,7 @@ class RenameModal(Modal, title="Rename Channel"):
 
 class LobbyCog(commands.GroupCog, group_name="lobby", group_description="Dynamic voice lobby tools."):
     """Cog for dynamic voice channel creation and cleanup."""
-    def __init__(self, bot: "UiPy"):
+    def __init__(self, bot: "Sakamoto"):
         self.bot = bot
         self.active_channels: set[int] = set()
         self.generators: dict[int, int] = {}  # guild_id -> channel_id
@@ -235,6 +235,6 @@ class LobbyCog(commands.GroupCog, group_name="lobby", group_description="Dynamic
             await db.commit()
 
 
-async def setup(bot: "UiPy"):
+async def setup(bot: "Sakamoto"):
     """Add the LobbyCog to the bot."""
     await bot.add_cog(LobbyCog(bot))

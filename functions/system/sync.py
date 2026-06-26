@@ -5,7 +5,7 @@ from discord import Guild, HTTPException
 from discord.ext import commands
 
 if TYPE_CHECKING:
-    from main import UiPy
+    from main import Sakamoto
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class SyncCog(commands.Cog):
     """Cog for syncing application commands."""
 
-    def __init__(self, bot: "UiPy"):
+    def __init__(self, bot: "Sakamoto"):
         self.bot = bot
 
     async def _sync_scope(self, guild: Guild | None = None) -> str:
@@ -64,6 +64,6 @@ class SyncCog(commands.Cog):
         else:
             logger.error("Unexpected error in sync command: %s", error)
 
-async def setup(bot: "UiPy"):
+async def setup(bot: "Sakamoto"):
     """Add the SyncCog to the bot."""
     await bot.add_cog(SyncCog(bot))

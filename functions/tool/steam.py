@@ -8,7 +8,7 @@ from discord import Embed, Interaction, app_commands
 from discord.ext import commands
 
 if TYPE_CHECKING:
-    from main import UiPy
+    from main import Sakamoto
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ except Exception as e:
 
 class SteamCog(commands.GroupCog, group_name="steam", group_description="Steam account linking and lobby tools."):
     """Cog for Steam integration, linking accounts and fetching lobby information."""
-    def __init__(self, bot: "UiPy"):
+    def __init__(self, bot: "Sakamoto"):
         self.bot = bot
         self.steam_api_base = "https://api.steampowered.com"
 
@@ -209,7 +209,7 @@ class SteamCog(commands.GroupCog, group_name="steam", group_description="Steam a
                 ":x: An unexpected error occurred while trying to fetch your lobby information."
             )
 
-async def setup(bot: "UiPy"):
+async def setup(bot: "Sakamoto"):
     if not STEAM_TOKEN:
         raise commands.ExtensionFailed(name="functions.tool.steam", original=RuntimeError("STEAM_TOKEN environment variable is not set."))
     await bot.add_cog(SteamCog(bot))

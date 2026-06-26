@@ -1,4 +1,4 @@
-# Ui-Py updater
+# Sakamoto updater
 
 ## What is this?
 
@@ -39,11 +39,11 @@ This value follows standard cron syntax and defaults to daily at 00:00. For exam
 
 ### Deployment
 
-Simply run `./init-docker.sh` to deploy both ui-py and the updater. Once deployed, it will handle everything automatically.
+Simply run `./init-docker.sh` to deploy both Sakamoto and the updater. Once deployed, it will handle everything automatically.
 
 ### What happens on each run
 
-1. Scans for containers labeled with `com.taichikuji.ui-py.enable=true` that belong to the current Docker Compose project.
+1. Scans for containers labeled with `com.taichikuji.sakamoto.enable=true` that belong to the current Docker Compose project.
 
 2. For each enabled service, pulls the latest image from the registry and recreates the container automatically if the image has changed.
 

@@ -5,14 +5,14 @@ from discord import Interaction, app_commands
 from discord.ext import commands
 
 if TYPE_CHECKING:
-    from main import UiPy
+    from main import Sakamoto
 
 logger = logging.getLogger(__name__)
 
 
 class CloseCog(commands.Cog):
     """Cog for shutting down the bot gracefully."""
-    def __init__(self, bot: "UiPy"):
+    def __init__(self, bot: "Sakamoto"):
         self.bot = bot
 
     @app_commands.command(
@@ -44,6 +44,6 @@ class CloseCog(commands.Cog):
             logger.error("Unexpected error in shutdown command: %s", error)
 
 
-async def setup(bot: "UiPy"):
+async def setup(bot: "Sakamoto"):
     """Add the CloseCog to the bot."""
     await bot.add_cog(CloseCog(bot))

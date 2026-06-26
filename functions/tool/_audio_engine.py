@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from discord import FFmpegPCMAudio, Interaction, Member, VoiceChannel, VoiceClient, VoiceState
 
 if TYPE_CHECKING:
-    from main import UiPy
+    from main import Sakamoto
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class QueueItem:
 class AudioEngine:
     """Shared playback state and voice/queue helpers."""
 
-    def __init__(self, bot: "UiPy"):
+    def __init__(self, bot: "Sakamoto"):
         self.bot = bot
         self.voice_clients: dict[int, VoiceClient] = {}
         self.queues: dict[int, deque[QueueItem]] = {}
@@ -232,7 +232,7 @@ class AudioEngine:
                 await self.disconnect_and_cleanup(guild_id)
 
 
-def get_audio_engine(bot: "UiPy") -> AudioEngine:
+def get_audio_engine(bot: "Sakamoto") -> AudioEngine:
     engine = getattr(bot, "_audio_engine", None)
     if engine is None:
         engine = AudioEngine(bot)

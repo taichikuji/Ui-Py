@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a bug or issue with Ui-Py
+about: Report a bug or issue with Sakamoto
 title: "[BUG] "
 labels: bug
 assignees: ''

@@ -1,9 +1,9 @@
 services:
   discord:
     build: ./
-    # image: ghcr.io/taichikuji/ui-py
+    # image: ghcr.io/taichikuji/sakamoto
     restart: unless-stopped
-    container_name: ui
+    container_name: sakamoto
     environment:
       - TOKEN=${TOKEN}
       - STEAM_TOKEN=${STEAM_TOKEN}
@@ -11,12 +11,12 @@ services:
       - ui_db:/usr/src/app/data
     # Label for updater to detect the service to update
     # labels:
-    #   - "com.taichikuji.ui-py.enable=true"
+    #   - "com.taichikuji.sakamoto.enable=true"
 
-  # Uncomment the following section to enable automatic updates on ui-py
+  # Uncomment the following section to enable automatic updates on sakamoto
   # updater:
   #   build: ./updater
-  #   container_name: ui-updater
+  #   container_name: sakamoto-updater
   #   restart: unless-stopped
   #   volumes:
   #     - /var/run/docker.sock:/var/run/docker.sock
@@ -25,4 +25,4 @@ services:
   #     - CRON_SCHEDULE=${CRON_SCHEDULE:-0 0 * * *}
 
 volumes:
-  ui_db:
+  sakamoto_db:

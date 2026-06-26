@@ -1,13 +1,13 @@
 # Proxmox LXC Deployment
 
-Deploy Ui-Py as a Proxmox LXC container with a single command.
+Deploy Sakamoto as a Proxmox LXC container with a single command.
 
 ## Quick Start
 
 Run from the **Proxmox host** shell:
 
 ```bash
-bash -c "$(wget -qO- https://raw.githubusercontent.com/taichikuji/Ui-Py/main/proxmox/uipy.sh)"
+bash -c "$(wget -qO- https://raw.githubusercontent.com/taichikuji/Sakamoto/main/proxmox/sakamoto.sh)"
 ```
 
 ## What It Does
@@ -16,8 +16,8 @@ bash -c "$(wget -qO- https://raw.githubusercontent.com/taichikuji/Ui-Py/main/pro
 |------|-------------|
 | **1. LXC Creation** | Creates a Debian 13 unprivileged container via the [community-scripts](https://github.com/community-scripts/ProxmoxVE) `build.func` framework (MIT licensed). Interactive menus let you pick storage, networking, and advanced settings. |
 | **2. Resource Defaults** | 2 CPU cores, 1 GB RAM, 4 GB disk — sized for Python + ffmpeg/voice dependencies. |
-| **3. Application Install** | Installs Python 3, pipenv, ffmpeg, libopus, libnacl, clones the repo to `/opt/uipy`, and runs `pipenv install --deploy`. |
-| **4. Systemd Service** | Configures `uipy.service` (enabled, but **not started** until you set your token). |
+| **3. Application Install** | Installs Python 3, pipenv, ffmpeg, libopus, libnacl, clones the repo to `/opt/sakamoto`, and runs `pipenv install --deploy`. |
+| **4. Systemd Service** | Configures `sakamoto.service` (enabled, but **not started** until you set your token). |
 
 ## Post-Install Setup
 
@@ -28,16 +28,16 @@ After the script finishes, enter the container and configure your bot token:
 pct enter <CTID>
 
 # 2. Edit the environment file
-nano /opt/uipy/.env
+nano /opt/sakamoto/.env
 
 # 3. Replace "your_discord_bot_token_here" with your actual Discord token
 #    Optionally uncomment and set STEAM_TOKEN for Steam commands
 
 # 4. Start the bot
-systemctl start uipy
+systemctl start sakamoto
 
 # 5. Verify it's running
-systemctl status uipy
+systemctl status sakamoto
 ```
 
 ## Updating

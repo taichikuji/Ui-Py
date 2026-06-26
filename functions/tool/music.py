@@ -10,13 +10,13 @@ from yt_dlp import YoutubeDL
 from ._audio_engine import get_audio_engine
 
 if TYPE_CHECKING:
-    from main import UiPy
+    from main import Sakamoto
 
 
 class MusicCog(commands.Cog):
     """Cog for music playback and shared audio controls."""
 
-    def __init__(self, bot: "UiPy"):
+    def __init__(self, bot: "Sakamoto"):
         self.bot = bot
         self.engine = get_audio_engine(bot)
         self.ydl_opts = {
@@ -193,6 +193,6 @@ class MusicCog(commands.Cog):
             await interaction.response.send_message(":x: The music queue is currently empty.", ephemeral=True)
 
 
-async def setup(bot: "UiPy"):
+async def setup(bot: "Sakamoto"):
     """Add the MusicCog to the bot."""
     await bot.add_cog(MusicCog(bot))
