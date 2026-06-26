@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class RadioCog(commands.GroupCog, group_name="radio", group_description="Play Radio Garden stations."):
-    """Groupped Radio based commands."""
+class RadioCog(commands.GroupCog, group_name="radio", group_description="Play radio stations."):
+    """Groupped radio based commands."""
 
     RADIO_ENDPOINT = "https://radio.garden/api"
 
@@ -23,7 +23,7 @@ class RadioCog(commands.GroupCog, group_name="radio", group_description="Play Ra
         self.bot = bot
         self.engine = get_audio_engine(bot)
 
-    @app_commands.command(name="search", description="Play a Radio Garden station by search, URL, or channel ID.")
+    @app_commands.command(name="search", description="Play a radio station by search, URL, or channel ID.")
     @app_commands.describe(query="A station query, radio URL, or channel ID.", region="Optional region/country hint.")
     async def search(self, interaction: Interaction, query: str, region: str | None = None):
         if not query or not query.strip():
@@ -32,7 +32,7 @@ class RadioCog(commands.GroupCog, group_name="radio", group_description="Play Ra
 
         await self.play_resolved_radio_station(interaction, query, region)
 
-    @app_commands.command(name="balloon", description="Play a random Radio Garden station.")
+    @app_commands.command(name="balloon", description="Play a random radio station.")
     async def balloon(self, interaction: Interaction):
         await self.play_resolved_radio_station(interaction, None, None)
 
@@ -87,7 +87,7 @@ class RadioCog(commands.GroupCog, group_name="radio", group_description="Play Ra
             duration="LIVE",
             stream_url=stream_url,
             followup=interaction.followup.send,
-            now_playing_message=f":radio: Playing **{title}** on Radio Garden",
+            now_playing_message=f":radio: Playing **{title}** using radio source",
             queue_message=f":ballot_box_with_check: Added to queue: :radio: **{title}** [LIVE]",
         )
 

@@ -31,7 +31,7 @@ class MusicCog(commands.Cog):
             "extract_flat": False,
         }
 
-    @app_commands.command(name="play", description="Play a song from YouTube. Provide a search term or URL.")
+    @app_commands.command(name="play", description="Play a song or audio. Provide a search term or URL.")
     async def play(self, interaction: Interaction, query: str):
         if not query:
             await interaction.response.send_message(":x: You must provide a search term or URL.", ephemeral=True)
