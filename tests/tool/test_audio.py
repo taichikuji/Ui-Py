@@ -249,6 +249,40 @@ async def test_resolve_radio_station_falls_back_to_search():
 
 
 @pytest.mark.asyncio
+async def test_resolve_radio_station_with_region_only_uses_region_search():
+    session = DummySession(
+        [
+            {
+                "hits": {
+                    "hits": [
+                        {
+                            "_source": {
+                                "type": "channel",
+                                "page": {
+                                    "type": "channel",
+                                    "title": "Radio Marca",
+                                    "subtitle": "Madrid, Spain",
+                                    "url": "/listen/radio-marca/spain123",
+                                    "place": {"title": "Madrid"},
+                                    "country": {"title": "Spain"},
+                                },
+                            }
+                        },
+                    ]
+                }
+            },
+        ]
+    )
+    cog = AudioCog(_make_bot(session=session))
+
+    channel_id, title = await cog._resolve_radio_station(None, "Spain")
+
+    assert channel_id == "spain123"
+    assert title == "Radio Marca"
+    assert session.calls[0][1] == {"q": "Spain"}
+
+
+@pytest.mark.asyncio
 async def test_resolve_radio_station_raises_when_search_empty():
     session = DummySession([{"hits": {"hits": []}}])
     cog = AudioCog(_make_bot(session=session))

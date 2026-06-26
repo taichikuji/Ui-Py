@@ -343,6 +343,14 @@ class AudioCog(commands.Cog):
 
     async def _resolve_radio_station(self, query: str | None, region: str | None = None) -> tuple[str, str]:
         if query is None or not query.strip():
+            if region and region.strip():
+                channel = await self._search_radio_channel(region.strip(), region)
+                if channel is None:
+                    raise ValueError(f"No radio station found in region '{region.strip()}'.")
+                if not (channel_id := self._channel_id_from_href(channel.get("url"))):
+                    raise ValueError("Could not resolve a station stream ID from search results.")
+                title = channel.get("title") or "Unknown Station"
+                return channel_id, title
             return await self._pick_random_station()
 
         raw = query.strip()
@@ -448,7 +456,7 @@ class AudioCog(commands.Cog):
     async def _search_radio_channel(self, query: str, region: str | None = None) -> dict | None:
         # Optional region hint narrows plain-text channel search results.
         search_query = query.strip()
-        if region and region.strip():
+        if region and region.strip() and region.strip().lower() not in search_query.lower():
             search_query = f"{search_query} {region.strip()}"
         payload = await self._fetch_json(f"{self.RADIO_ENDPOINT}/search", params={"q": search_query})
         hits = (payload or {}).get("hits", {}).get("hits") or []
