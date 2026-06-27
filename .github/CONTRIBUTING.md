@@ -8,6 +8,39 @@ Please be respectful and considerate of others when contributing to this project
 
 ## How to Contribute
 
+### Commit Style
+
+Commit should follow this style:
+
+[Semantic Commit Messages](https://gist.github.com/joshbuchea/6f47e86d2510bce28f8e7f42ae84c716)
+
+Aka:
+
+Format: `<type>(<scope>): <subject>`
+
+`<scope>` is optional
+
+## Example
+
+```
+feat: add hat wobble
+^--^  ^------------^
+|     |
+|     +-> Summary in present tense.
+|
++-------> Type: chore, docs, feat, fix, refactor, style, or test.
+```
+
+More Examples:
+
+- `feat`: (new feature for the user, not a new feature for build script)
+- `fix`: (bug fix for the user, not a fix to a build script)
+- `docs`: (changes to the documentation)
+- `style`: (formatting, missing semi colons, etc; no production code change)
+- `refactor`: (refactoring production code, eg. renaming a variable)
+- `test`: (adding missing tests, refactoring tests; no production code change)
+- `chore`: (updating grunt tasks etc; no production code change)
+
 ### Reporting Bugs
 
 If you've found a bug in Sakamoto, please create an issue using the bug report template. To ensure we can address your bug quickly, please:
@@ -16,6 +49,8 @@ If you've found a bug in Sakamoto, please create an issue using the bug report t
 2. Use the Bug Report template when creating a new issue on GitHub
 3. Include as much detail as possible, including steps to reproduce, expected behavior, and your environment
 
+
+
 ### Suggesting Features
 
 Have an idea for a new feature or improvement? We'd love to hear it! Please:
@@ -23,6 +58,8 @@ Have an idea for a new feature or improvement? We'd love to hear it! Please:
 1. Check if the feature has already been suggested
 2. Use the Feature Request template when creating a new issue on GitHub
 3. Clearly describe the problem your feature would solve and how it should work
+
+
 
 ### Pull Requests
 
@@ -34,24 +71,28 @@ We welcome pull requests! Here's how to submit one:
 4. Test your changes thoroughly
 5. Submit a pull request (the PR template will load automatically)
 
+
+
 ## Development Setup
 
 To set up the project for local development:
 
 1. Clone your fork of the repository
 2. Install dependencies with pipenv:
-   ```bash
+  ```bash
    pipenv install --dev
-   ```
+  ```
 3. Create a Discord bot through the [Discord Developer Portal](https://discord.com/developers/applications)
 4. Set your bot token as an environment variable:
-   ```bash
+  ```bash
    export TOKEN='YOUR_DISCORD_BOT_TOKEN'
-   ```
+  ```
 5. Run the bot in development mode:
-   ```bash
+  ```bash
    pipenv run python main.py
-   ```
+  ```
+
+
 
 ## Project Structure
 
@@ -64,17 +105,21 @@ Sakamoto follows a modular architecture:
 - `.github/`: GitHub templates and configuration
 - `media/`: Assets and resources
 
+
+
 ## Adding New Features
 
 To add a new feature:
 
 1. Decide if it's a system feature or a tool
 2. Create a new Python file in the appropriate directory:
-   - System commands go in `functions/system/`
-   - User tools go in `functions/tool/`
+  - System commands go in `functions/system/`
+  - User tools go in `functions/tool/`
 3. Follow the existing module pattern with a main cog class and a setup function
 4. Use Discord.py's command and event decorators for functionality
 5. Test your feature thoroughly before submitting a PR
+
+
 
 ## Code Style Guidelines
 
@@ -86,6 +131,8 @@ Please follow these guidelines for your code contributions:
 - Maintain consistent naming conventions with the existing codebase
 - Use type hints where appropriate
 
+
+
 ## Testing
 
 Before submitting your changes, please test them thoroughly. Ensure:
@@ -94,6 +141,8 @@ Before submitting your changes, please test them thoroughly. Ensure:
 2. Your change doesn't break existing functionality
 3. Your code doesn't generate new warnings or errors
 
+
+
 ## Documentation
 
 If you're adding new features or changing existing ones, please update the documentation accordingly. This includes:
@@ -101,6 +150,8 @@ If you're adding new features or changing existing ones, please update the docum
 - Docstrings in the code
 - Comments explaining complex logic
 - Updating the PROJECT_GUIDE.md if necessary
+
+
 
 ## Questions?
 
