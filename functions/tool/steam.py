@@ -78,7 +78,6 @@ class SteamCog(commands.GroupCog, group_name="steam", group_description="Steam a
             if reason.startswith(":x:"):
                 reason = reason.removeprefix(":x:").strip()
             details = f"Reason: {reason}\n"
-,.
         return (
             f":x: Could not resolve `{steam_identifier}` to a valid SteamID64.\n"
             f"{details}"
