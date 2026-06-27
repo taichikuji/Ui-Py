@@ -3,6 +3,7 @@ from os import environ, makedirs, path
 from re import IGNORECASE, fullmatch, match
 from typing import TYPE_CHECKING
 
+from aiohttp import ClientError, ContentTypeError
 from aiosqlite import connect
 from discord import Embed, Interaction, app_commands
 from discord.ext import commands
@@ -53,13 +54,47 @@ class SteamCog(commands.GroupCog, group_name="steam", group_description="Steam a
                     return row[0]
                 return None
 
-    async def _resolve_steam_id(self, vanity_url_or_id: str) -> str | None:
+    def _steam_http_error_message(self, status: int) -> str:
+        if status == 400:
+            return ":x: Steam rejected the request (400 Bad Request). Please double-check the input and try again."
+        if status in {401, 403}:
+            return ":x: Steam denied access to the API key (401/403). The bot owner needs to verify `STEAM_TOKEN`."
+        if status == 404:
+            return ":x: Steam API endpoint was not found (404). This command may need a bot update."
+        if status == 405:
+            return ":x: Steam rejected the HTTP method (405). This command may need a bot update."
+        if status == 429:
+            return ":x: Steam rate-limited this request (429). Please wait a moment and try again."
+        if status == 500:
+            return ":x: Steam had an internal server error (500). Please try again shortly."
+        if status == 503:
+            return ":x: Steam service is temporarily unavailable (503). Please try again later."
+        return f":x: Steam API returned HTTP `{status}`. Please try again later."
+
+    def _steam_id_help_message(self, steam_identifier: str, extra: str | None = None) -> str:
+        details = ""
+        if extra:
+            reason = extra.strip()
+            if reason.startswith(":x:"):
+                reason = reason.removeprefix(":x:").strip()
+            details = f"Reason: {reason}\n"
+,.
+        return (
+            f":x: Could not resolve `{steam_identifier}` to a valid SteamID64.\n"
+            f"{details}"
+            "Use one of these formats:\n"
+            "- 17-digit SteamID64 (example: `76561198000000000`)\n"
+            "- Full Steam profile URL (`https://steamcommunity.com/id/<vanity>` or `/profiles/<steamid64>`)\n"
+            "- Vanity name only (example: `gaben`)"
+        )
+
+    async def _resolve_steam_id(self, vanity_url_or_id: str) -> tuple[str | None, str | None]:
         if not self.bot.session:
             logger.error("Bot aiohttp session is not initialized.")
-            return None
+            return None, ":x: The bot's HTTP session is not ready. Please try again later."
         if not STEAM_TOKEN:
             logger.error("STEAM_TOKEN is not set. Cannot resolve Steam ID.")
-            return None
+            return None, ":x: The bot's Steam API key is not configured. Please contact the bot owner."
         
         vanity_name = vanity_url_or_id
         # regex to extract vanity name from Steam URL
@@ -69,11 +104,11 @@ class SteamCog(commands.GroupCog, group_name="steam", group_description="Steam a
                 vanity_name = id_part
             # matches profiles url
             elif profiles_part := profile_match.group(2):
-                return profiles_part
+                return profiles_part, None
             
         # confirm if input is indeed SteamID64 after extraction
         if fullmatch(r"\d{17}", vanity_name):
-            return vanity_name
+            return vanity_name, None
         
         try:
             # API call to resolve vanity URL to SteamID64
@@ -81,22 +116,43 @@ class SteamCog(commands.GroupCog, group_name="steam", group_description="Steam a
                 f"{self.steam_api_base}/ISteamUser/ResolveVanityURL/v1/",
                 params={"key": STEAM_TOKEN, "vanityurl": vanity_name, "url_type": "1"} # url_type 1 for individual profile
             ) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    if (response := data.get("response", {})) and response.get("success") == 1:
-                        return response.get("steamid")
-                    else:
-                        logger.info("Could not resolve vanity '%s'. Message: %s", vanity_name, response.get('message', 'No message'))
-                        return None 
-                else:
+                if resp.status != 200:
                     logger.error("Steam API error (ResolveVanityURL) - Status %s", resp.status)
-                    return None
+                    return None, self._steam_http_error_message(resp.status)
+
+                data = await resp.json()
+                response = data.get("response", {})
+                if response.get("success") == 1 and response.get("steamid"):
+                    return response["steamid"], None
+
+                success_code = response.get("success")
+                api_message = response.get("message")
+                logger.info(
+                    "Could not resolve vanity '%s'. success=%s message=%s",
+                    vanity_name,
+                    success_code,
+                    api_message,
+                )
+
+                if success_code == 42:
+                    return None, "Steam could not find that vanity profile name (success code 42)."
+                if api_message:
+                    return None, f"Steam returned: `{api_message}`."
+                if success_code is not None:
+                    return None, f"Steam could not resolve this profile (success code `{success_code}`)."
+                return None, "Steam returned an unexpected response while resolving this profile."
+        except ContentTypeError:
+            logger.error("ResolveVanityURL returned non-JSON content for '%s'.", vanity_name)
+            return None, ":x: Steam returned an unexpected response format. Please try again later."
+        except ClientError as e:
+            logger.error("Network error during Steam ID resolution for '%s': %s", vanity_name, e)
+            return None, ":x: Network error while contacting Steam. Please try again in a moment."
         except Exception as e:
             logger.error("Exception during Steam ID resolution for '%s': %s", vanity_name, e)
-            return None
+            return None, ":x: Unexpected error while resolving your Steam account. Please try again later."
         
         # Default return if no resolution
-        return None
+        return None, ":x: Could not resolve the provided Steam identifier."
 
     @app_commands.command(name="link", description="Link your Discord account to a Steam ID or vanity URL.")
     async def link_steam(self, interaction: Interaction, steam_identifier: str):
@@ -113,12 +169,9 @@ class SteamCog(commands.GroupCog, group_name="steam", group_description="Steam a
             )
             return
         
-        if not (steam_id := await self._resolve_steam_id(steam_identifier.strip())):
-            await interaction.followup.send(
-                f":x: Could not resolve '{steam_identifier}' to a valid SteamID64. \\\\n"
-                "You can use https://www.steamidfinder.com/ to find your SteamID64 or vanity URL."
-                "or you can search on Google 'find steamID64 from Vanity URL' for more information"
-            )
+        steam_id, resolve_error = await self._resolve_steam_id(steam_identifier.strip())
+        if not steam_id:
+            await interaction.followup.send(self._steam_id_help_message(steam_identifier, resolve_error))
             return
         
         await self._save_steam_link(interaction.user.id, steam_id)
@@ -158,10 +211,7 @@ class SteamCog(commands.GroupCog, group_name="steam", group_description="Steam a
             ) as resp:
                 if resp.status != 200:
                     logger.error("Steam API error (GetPlayerSummaries) - Status %s", resp.status)
-                    await interaction.followup.send(
-                        f":x: Error fetching your player summary from Steam (HTTP {resp.status}). "
-                        "Your profile might be private or an API error occurred."
-                    )
+                    await interaction.followup.send(self._steam_http_error_message(resp.status))
                     return
                 data = await resp.json()
             
@@ -203,6 +253,20 @@ class SteamCog(commands.GroupCog, group_name="steam", group_description="Steam a
             
             await interaction.followup.send(embed=embed)
 
+        except ContentTypeError:
+            logger.error(
+                "GetPlayerSummaries returned non-JSON content for user %s (SteamID: %s).",
+                interaction.user.id,
+                linked_steam_id,
+            )
+            await interaction.followup.send(
+                ":x: Steam returned an unexpected response format while fetching your lobby details."
+            )
+        except ClientError as e:
+            logger.error("Network error in get_lobby for user %s (SteamID: %s): %s", interaction.user.id, linked_steam_id, e)
+            await interaction.followup.send(
+                ":x: Network error while contacting Steam. Please try again in a moment."
+            )
         except Exception as e:
             logger.error("get_lobby command failed for user %s (SteamID: %s): %s", interaction.user.id, linked_steam_id, e)
             await interaction.followup.send(
