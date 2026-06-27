@@ -87,7 +87,7 @@ class RadioCog(commands.GroupCog, group_name="radio", group_description="Play ra
             duration="LIVE",
             stream_url=stream_url,
             followup=interaction.followup.send,
-            now_playing_message=f":radio: Playing **{title}** using radio source",
+            now_playing_message=f":radio: Now playing: **{title}** using radio source",
             queue_message=f":ballot_box_with_check: Added to queue: :radio: **{title}** [LIVE]",
         )
 
