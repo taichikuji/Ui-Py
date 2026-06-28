@@ -245,7 +245,7 @@ class SteamCog(commands.GroupCog, group_name="steam", group_description="Steam a
                 description=f"Join {interaction.user.mention}'s lobby for **{game_name}**!",
                 color=self.bot.color
             )
-            embed.add_field(name="Lobby Link", value=f"`{lobby_url}`", inline=False)
+            embed.add_field(name="Lobby Link", value=f"<{lobby_url}>", inline=False)
             embed.set_footer(text="Clicking this link requires Steam to be installed and running.")
             if interaction.user.display_avatar:
                 embed.set_thumbnail(url=interaction.user.display_avatar.url)
