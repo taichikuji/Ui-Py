@@ -66,7 +66,7 @@ class MusicCog(commands.Cog):
                 continue
             seen_values.add(value)
             choices.append(app_commands.Choice(name=title[:100] or "Unknown Title", value=value))
-            if len(choices) == 10:
+            if len(choices) == 5:
                 break
         return choices
 
@@ -130,7 +130,7 @@ class MusicCog(commands.Cog):
         opts = dict(self.ydl_opts)
         opts["extract_flat"] = True
         with YoutubeDL(opts) as ydl:
-            return ydl.extract_info(f"ytsearch10:{query}", download=False)
+            return ydl.extract_info(f"ytsearch5:{query}", download=False)
 
     async def refresh_stream_url(self, source_url: str) -> str | None:
         info = await get_running_loop().run_in_executor(None, self.search_source, source_url)

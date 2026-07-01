@@ -47,27 +47,25 @@ class RadioCog(commands.GroupCog, group_name="radio", group_description="Play ra
             subtitle = str(channel.get("subtitle") or "").strip()
             label = f"{title} ({subtitle})" if subtitle else title
             choices.append(app_commands.Choice(name=label[:100] or "Unknown Station", value=value[:100]))
-            if len(choices) == 10:
+            if len(choices) == 5:
                 break
         return choices
 
     @app_commands.command(name="search", description="Play a radio station by search, URL, or channel ID.")
     @app_commands.autocomplete(query=search_query_autocomplete)
-    @app_commands.describe(query="A station query, radio URL, or channel ID.", region="Optional region/country hint.")
-    async def search(self, interaction: Interaction, query: str, region: str | None = None):
+    @app_commands.describe(query="A station query, radio URL, or channel ID.")
+    async def search(self, interaction: Interaction, query: str):
         if not query or not query.strip():
             await interaction.response.send_message(":x: You must provide a station query, URL, or channel ID.", ephemeral=True)
             return
 
-        await self.play_resolved_radio_station(interaction, query, region)
+        await self.play_resolved_radio_station(interaction, query)
 
     @app_commands.command(name="balloon", description="Play a random radio station.")
     async def balloon(self, interaction: Interaction):
-        await self.play_resolved_radio_station(interaction, None, None)
+        await self.play_resolved_radio_station(interaction, None)
 
-    async def play_resolved_radio_station(
-        self, interaction: Interaction, query: str | None, region: str | None
-    ) -> None:
+    async def play_resolved_radio_station(self, interaction: Interaction, query: str | None) -> None:
         if (guild_id := interaction.guild_id) is None:
             await interaction.response.send_message(":x: Could not determine guild ID.", ephemeral=True)
             return
@@ -85,7 +83,7 @@ class RadioCog(commands.GroupCog, group_name="radio", group_description="Play ra
             return
 
         try:
-            channel_id, title = await self.resolve_radio_station(query, region)
+            channel_id, title = await self.resolve_radio_station(query)
         except ValueError as e:
             await interaction.followup.send(f":x: {e}", ephemeral=True)
             return
@@ -120,7 +118,7 @@ class RadioCog(commands.GroupCog, group_name="radio", group_description="Play ra
             queue_message=f":ballot_box_with_check: Added to queue: :radio: **{title}** [LIVE]",
         )
 
-    async def resolve_radio_station(self, query: str | None, region: str | None = None) -> tuple[str, str]:
+    async def resolve_radio_station(self, query: str | None) -> tuple[str, str]:
         if query is None:
             return await self.pick_random_station()
 
@@ -132,10 +130,8 @@ class RadioCog(commands.GroupCog, group_name="radio", group_description="Play ra
                 title = channel.get("title") or "Unknown Station"
                 return channel_id, title
 
-        channel = await self.search_radio_channel(raw, region)
+        channel = await self.search_radio_channel(raw)
         if channel is None:
-            if region:
-                raise ValueError(f"No radio station found for query '{raw}' in region '{region}'.")
             raise ValueError("No radio station found for that query.")
 
         if not (channel_id := self.channel_id_from_href(channel.get("url"))):
@@ -209,28 +205,17 @@ class RadioCog(commands.GroupCog, group_name="radio", group_description="Play ra
 
         raise ValueError("Could not resolve a playable radio stream.")
 
-    async def search_radio_channel(self, query: str, region: str | None = None) -> dict | None:
-        search_query = query.strip()
-        if region and region.strip() and region.strip().lower() not in search_query.lower():
-            search_query = f"{search_query} {region.strip()}"
-        payload = await self.fetch_json(f"{self.RADIO_ENDPOINT}/search", params={"q": search_query})
+    async def search_radio_channel(self, query: str) -> dict | None:
+        payload = await self.fetch_json(f"{self.RADIO_ENDPOINT}/search", params={"q": query.strip()})
         hits = (payload or {}).get("hits", {}).get("hits") or []
-        region_match: dict | None = None
         for hit in hits:
             source = hit.get("_source") or {}
             channel = self.radio_station_page(source)
             if not channel:
                 continue
             if self.channel_id_from_href(channel.get("url")):
-                if region and self.matches_region(channel, region):
-                    return channel
-                if region_match is None:
-                    region_match = channel
-                if not region:
-                    return channel
-        if region:
-            return None
-        return region_match
+                return channel
+        return None
 
     @staticmethod
     def radio_station_page(source: dict) -> dict | None:
@@ -238,19 +223,6 @@ class RadioCog(commands.GroupCog, group_name="radio", group_description="Play ra
         if isinstance(page, dict):
             return page if page.get("type") == "channel" else None
         return source if source.get("type") == "channel" else None
-
-    @staticmethod
-    def matches_region(source: dict, region: str) -> bool:
-        region_value = region.strip().lower()
-        if not region_value:
-            return True
-        subtitle = str(source.get("subtitle") or "").lower()
-        title = str(source.get("title") or "").lower()
-        place = source.get("place") if isinstance(source.get("place"), dict) else {}
-        country = source.get("country") if isinstance(source.get("country"), dict) else {}
-        place_title = str(place.get("title") or "").lower()
-        country_title = str(country.get("title") or "").lower()
-        return region_value in subtitle or region_value in title or region_value in place_title or region_value in country_title
 
     async def fetch_json(self, url: str, *, params: dict | None = None) -> dict | None:
         if self.bot.session is None:

@@ -23,7 +23,6 @@ def test_radio_subcommand_option_contracts():
 
     assert [(param.name, param.required, bool(param.autocomplete)) for param in search.parameters] == [
         ("query", True, True),
-        ("region", False, False),
     ]
     assert balloon.parameters == []
 
@@ -216,7 +215,7 @@ async def test_resolve_radio_station_with_channel_id():
     session = DummySession([{"data": {"title": "Mataro Radio", "url": "/listen/mataroradio/sFtKSe5I"}}])
     cog = RadioCog(_make_bot(session=session))
 
-    channel_id, title = await cog.resolve_radio_station("sFtKSe5I", "Barcelona")
+    channel_id, title = await cog.resolve_radio_station("sFtKSe5I")
 
     assert channel_id == "sFtKSe5I"
     assert title == "Mataro Radio"
@@ -264,11 +263,11 @@ async def test_resolve_radio_station_falls_back_to_search():
     )
     cog = RadioCog(_make_bot(session=session))
 
-    channel_id, title = await cog.resolve_radio_station("FlaixBac", "Barcelona")
+    channel_id, title = await cog.resolve_radio_station("FlaixBac")
 
-    assert channel_id == "sFtKSe5I"
+    assert channel_id == "aaaa1111"
     assert title == "Flaixbac"
-    assert session.calls[1][1] == {"q": "FlaixBac Barcelona"}
+    assert session.calls[1][1] == {"q": "FlaixBac"}
 
 
 @pytest.mark.asyncio
@@ -276,7 +275,7 @@ async def test_resolve_radio_station_with_none_query_uses_random_station():
     cog = RadioCog(_make_bot(session=DummySession([])))
     cog.pick_random_station = AsyncMock(return_value=("spain123", "Radio Marca"))
 
-    channel_id, title = await cog.resolve_radio_station(None, "Spain")
+    channel_id, title = await cog.resolve_radio_station(None)
 
     assert channel_id == "spain123"
     assert title == "Radio Marca"
@@ -289,11 +288,11 @@ async def test_resolve_radio_station_raises_when_search_empty():
     cog = RadioCog(_make_bot(session=session))
 
     with pytest.raises(ValueError):
-        await cog.resolve_radio_station("does-not-exist", "Barcelona")
+        await cog.resolve_radio_station("does-not-exist")
 
 
 @pytest.mark.asyncio
-async def test_resolve_radio_station_raises_when_region_filter_has_no_match():
+async def test_resolve_radio_station_raises_when_search_has_no_channel_hits():
     session = DummySession(
         [
             {
@@ -301,15 +300,9 @@ async def test_resolve_radio_station_raises_when_region_filter_has_no_match():
                     "hits": [
                         {
                             "_source": {
-                                "type": "channel",
-                                "page": {
-                                    "type": "channel",
-                                    "title": "Flaixbac",
-                                    "subtitle": "Madrid, Spain",
-                                    "url": "/listen/flaixbac/sFtKSe5I",
-                                    "place": {"title": "Madrid"},
-                                    "country": {"title": "Spain"},
-                                },
+                                "type": "place",
+                                "title": "Barcelona",
+                                "url": "/map/barcelona",
                             }
                         },
                     ]
@@ -320,7 +313,7 @@ async def test_resolve_radio_station_raises_when_region_filter_has_no_match():
     cog = RadioCog(_make_bot(session=session))
 
     with pytest.raises(ValueError):
-        await cog.resolve_radio_station("FlaixBac", "Barcelona")
+        await cog.resolve_radio_station("FlaixBac")
 
 
 @pytest.mark.asyncio
@@ -395,9 +388,9 @@ async def test_radio_does_not_join_voice_when_station_resolution_fails(monkeypat
     radio.engine.get_or_connect_voice_client = AsyncMock()
     monkeypatch.setattr("functions.tool.radio.Member", DummyMember)
 
-    await _radio_command("search").callback(radio, interaction, query="missing", region=None)
+    await _radio_command("search").callback(radio, interaction, query="missing")
 
-    radio.resolve_radio_station.assert_awaited_once_with("missing", None)
+    radio.resolve_radio_station.assert_awaited_once_with("missing")
     radio.resolve_radio_stream_url.assert_not_awaited()
     radio.engine.get_or_connect_voice_client.assert_not_awaited()
     voice_channel.connect.assert_not_awaited()
@@ -418,9 +411,9 @@ async def test_radio_does_not_join_voice_when_stream_resolution_fails(monkeypatc
     radio.engine.get_or_connect_voice_client = AsyncMock()
     monkeypatch.setattr("functions.tool.radio.Member", DummyMember)
 
-    await _radio_command("search").callback(radio, interaction, query="flaixbac", region=None)
+    await _radio_command("search").callback(radio, interaction, query="flaixbac")
 
-    radio.resolve_radio_station.assert_awaited_once_with("flaixbac", None)
+    radio.resolve_radio_station.assert_awaited_once_with("flaixbac")
     radio.resolve_radio_stream_url.assert_awaited_once_with("sFtKSe5I")
     radio.engine.get_or_connect_voice_client.assert_not_awaited()
     voice_channel.connect.assert_not_awaited()
@@ -443,7 +436,7 @@ async def test_radio_balloon_uses_random_station_path(monkeypatch):
 
     await _radio_command("balloon").callback(radio, interaction)
 
-    radio.resolve_radio_station.assert_awaited_once_with(None, None)
+    radio.resolve_radio_station.assert_awaited_once_with(None)
     radio.resolve_radio_stream_url.assert_awaited_once_with("sFtKSe5I")
     radio.engine.enqueue_or_play.assert_awaited_once()
 
@@ -509,6 +502,26 @@ async def test_play_query_autocomplete_expands_video_id_to_url(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_play_query_autocomplete_limits_to_five_choices(monkeypatch):
+    cog = MusicCog(_make_bot())
+    monkeypatch.setattr(
+        "functions.tool.music.get_running_loop",
+        lambda: DummyLoop(
+            {
+                "entries": [
+                    {"title": f"Track {i}", "webpage_url": f"https://youtube.test/watch?v={i}"}
+                    for i in range(6)
+                ]
+            }
+        ),
+    )
+
+    choices = await cog.play_query_autocomplete(SimpleNamespace(), "track")
+
+    assert len(choices) == 5
+
+
+@pytest.mark.asyncio
 async def test_search_query_autocomplete_returns_channel_choices():
     session = DummySession(
         [
@@ -537,6 +550,37 @@ async def test_search_query_autocomplete_returns_channel_choices():
     choices = await cog.search_query_autocomplete(SimpleNamespace(), "flaix")
 
     assert [(choice.name, choice.value) for choice in choices] == [("Flaixbac (Barcelona, Spain)", "sFtKSe5I")]
+
+
+@pytest.mark.asyncio
+async def test_search_query_autocomplete_limits_to_five_choices():
+    session = DummySession(
+        [
+            {
+                "hits": {
+                    "hits": [
+                        {
+                            "_source": {
+                                "type": "channel",
+                                "page": {
+                                    "type": "channel",
+                                    "title": f"Station {i}",
+                                    "subtitle": "Spain",
+                                    "url": f"/listen/station-{i}/id{i}",
+                                },
+                            }
+                        }
+                        for i in range(6)
+                    ]
+                }
+            }
+        ]
+    )
+    cog = RadioCog(_make_bot(session=session))
+
+    choices = await cog.search_query_autocomplete(SimpleNamespace(), "station")
+
+    assert len(choices) == 5
 
 
 @pytest.mark.asyncio
