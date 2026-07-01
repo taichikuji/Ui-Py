@@ -23,7 +23,36 @@ class RadioCog(commands.GroupCog, group_name="radio", group_description="Play ra
         self.bot = bot
         self.engine = get_audio_engine(bot)
 
+    async def search_query_autocomplete(self, _interaction: Interaction, current: str) -> list[app_commands.Choice[str]]:
+        query = current.strip()
+        if len(query) < 2:
+            return []
+
+        payload = await self.fetch_json(f"{self.RADIO_ENDPOINT}/search", params={"q": query})
+        hits = (payload or {}).get("hits", {}).get("hits") or []
+        choices: list[app_commands.Choice[str]] = []
+        seen_values: set[str] = set()
+        for hit in hits:
+            source = hit.get("_source") or {}
+            channel = self.radio_station_page(source)
+            if not channel:
+                continue
+
+            value = self.channel_id_from_href(channel.get("url") or channel.get("href"))
+            if not value or value in seen_values:
+                continue
+            seen_values.add(value)
+
+            title = str(channel.get("title") or "Unknown Station").strip()
+            subtitle = str(channel.get("subtitle") or "").strip()
+            label = f"{title} ({subtitle})" if subtitle else title
+            choices.append(app_commands.Choice(name=label[:100] or "Unknown Station", value=value[:100]))
+            if len(choices) == 10:
+                break
+        return choices
+
     @app_commands.command(name="search", description="Play a radio station by search, URL, or channel ID.")
+    @app_commands.autocomplete(query=search_query_autocomplete)
     @app_commands.describe(query="A station query, radio URL, or channel ID.", region="Optional region/country hint.")
     async def search(self, interaction: Interaction, query: str, region: str | None = None):
         if not query or not query.strip():

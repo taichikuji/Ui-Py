@@ -31,7 +31,47 @@ class MusicCog(commands.Cog):
             "extract_flat": False,
         }
 
+    async def play_query_autocomplete(self, _interaction: Interaction, current: str) -> list[app_commands.Choice[str]]:
+        query = current.strip()
+        if len(query) < 2:
+            return []
+
+        try:
+            info = await get_running_loop().run_in_executor(None, self.search_source_autocomplete, query)
+        except Exception:
+            return []
+
+        entries = info.get("entries") if isinstance(info, dict) else None
+        if not entries:
+            return []
+
+        choices: list[app_commands.Choice[str]] = []
+        seen_values: set[str] = set()
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            title = str(entry.get("title") or "Unknown Title").strip()
+            value = str(entry.get("webpage_url") or "").strip()
+            if not value:
+                fallback = str(entry.get("url") or "").strip()
+                if fallback and "://" in fallback:
+                    value = fallback
+                elif fallback:
+                    value = f"https://www.youtube.com/watch?v={fallback}"
+            if not value:
+                value = title
+            if len(value) > 100:
+                value = title[:100].strip()
+            if not value or value in seen_values:
+                continue
+            seen_values.add(value)
+            choices.append(app_commands.Choice(name=title[:100] or "Unknown Title", value=value))
+            if len(choices) == 10:
+                break
+        return choices
+
     @app_commands.command(name="play", description="Play a song or audio. Provide a search term or URL.")
+    @app_commands.autocomplete(query=play_query_autocomplete)
     async def play(self, interaction: Interaction, query: str):
         if not query:
             await interaction.response.send_message(":x: You must provide a search term or URL.", ephemeral=True)
@@ -85,6 +125,12 @@ class MusicCog(commands.Cog):
     def search_source(self, query: str):
         with YoutubeDL(self.ydl_opts) as ydl:
             return ydl.extract_info(query, download=False)
+
+    def search_source_autocomplete(self, query: str):
+        opts = dict(self.ydl_opts)
+        opts["extract_flat"] = True
+        with YoutubeDL(opts) as ydl:
+            return ydl.extract_info(f"ytsearch10:{query}", download=False)
 
     async def refresh_stream_url(self, source_url: str) -> str | None:
         info = await get_running_loop().run_in_executor(None, self.search_source, source_url)

@@ -21,11 +21,17 @@ def test_radio_subcommand_option_contracts():
     search = _radio_command("search")
     balloon = _radio_command("balloon")
 
-    assert [(param.name, param.required) for param in search.parameters] == [
-        ("query", True),
-        ("region", False),
+    assert [(param.name, param.required, bool(param.autocomplete)) for param in search.parameters] == [
+        ("query", True, True),
+        ("region", False, False),
     ]
     assert balloon.parameters == []
+
+
+def test_play_option_contracts():
+    assert [(param.name, param.required, bool(param.autocomplete)) for param in MusicCog.play.parameters] == [
+        ("query", True, True),
+    ]
 
 
 class DummyMember:
@@ -467,6 +473,70 @@ async def test_play_connects_before_enqueue(monkeypatch):
     voice_channel.connect.assert_awaited_once()
     assert cog.engine.voice_clients[1] is connected_client
     cog.engine.enqueue_or_play.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_play_query_autocomplete_returns_distinct_choices(monkeypatch):
+    cog = MusicCog(_make_bot())
+    monkeypatch.setattr(
+        "functions.tool.music.get_running_loop",
+        lambda: DummyLoop(
+            {
+                "entries": [
+                    {"title": "Track", "webpage_url": "https://youtube.test/watch?v=abc"},
+                    {"title": "Track", "webpage_url": "https://youtube.test/watch?v=abc"},
+                ]
+            }
+        ),
+    )
+
+    choices = await cog.play_query_autocomplete(SimpleNamespace(), "track")
+
+    assert [(choice.name, choice.value) for choice in choices] == [("Track", "https://youtube.test/watch?v=abc")]
+
+
+@pytest.mark.asyncio
+async def test_play_query_autocomplete_expands_video_id_to_url(monkeypatch):
+    cog = MusicCog(_make_bot())
+    monkeypatch.setattr(
+        "functions.tool.music.get_running_loop",
+        lambda: DummyLoop({"entries": [{"title": "Track", "url": "abc123"}]}),
+    )
+
+    choices = await cog.play_query_autocomplete(SimpleNamespace(), "track")
+
+    assert [(choice.name, choice.value) for choice in choices] == [("Track", "https://www.youtube.com/watch?v=abc123")]
+
+
+@pytest.mark.asyncio
+async def test_search_query_autocomplete_returns_channel_choices():
+    session = DummySession(
+        [
+            {
+                "hits": {
+                    "hits": [
+                        {"_source": {"type": "place", "title": "Barcelona", "url": "/map/barcelona"}},
+                        {
+                            "_source": {
+                                "type": "channel",
+                                "page": {
+                                    "type": "channel",
+                                    "title": "Flaixbac",
+                                    "subtitle": "Barcelona, Spain",
+                                    "url": "/listen/flaixbac/sFtKSe5I",
+                                },
+                            }
+                        },
+                    ]
+                }
+            }
+        ]
+    )
+    cog = RadioCog(_make_bot(session=session))
+
+    choices = await cog.search_query_autocomplete(SimpleNamespace(), "flaix")
+
+    assert [(choice.name, choice.value) for choice in choices] == [("Flaixbac (Barcelona, Spain)", "sFtKSe5I")]
 
 
 @pytest.mark.asyncio
